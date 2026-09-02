@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --base-font-size: 16px;
+}
+
+html {
+  font-size: var(--base-font-size);
+}
+
+/* Accessibility Modes */
+body.font-sm {
+  --base-font-size: 14px;
+}
+
+body.font-md {
+  --base-font-size: 16px;
+}
+
+body.font-lg {
+  --base-font-size: 18px;
+}
+
+body.font-xl {
+  --base-font-size: 20px;
+}
+
+/* Grayscale Mode */
+body.grayscale-mode {
+  filter: grayscale(100%);
+}
+
+/* High Contrast Mode */
+body.high-contrast {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+body.high-contrast .bg-white,
+body.high-contrast .bg-slate-50,
+body.high-contrast .bg-slate-100,
+body.high-contrast .bg-gov-bg {
+  background-color: #0d0d0d !important;
+  color: #ffffff !important;
+  border-color: #ffff00 !important;
+}
+
+body.high-contrast .text-slate-600,
+body.high-contrast .text-slate-500,
+body.high-contrast .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+body.high-contrast a,
+body.high-contrast button {
+  outline: 1px solid #ffff00 !important;
+}
+
+/* Reduced Motion Mode */
+body.reduce-motion,
+body.reduce-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Focus visibility for WCAG 2.1 AA */
+*:focus-visible {
+  outline: 2px solid #E65100 !important;
+  outline-offset: 2px;
+}
+
+/* Custom Scrollbar for official look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #94A3B8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}

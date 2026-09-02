@@ -251,7 +251,7 @@ class StorageService {
     this.setItem(STORAGE_KEYS.AUDIT_LOGS, logs);
   }
 
-  // Complete Reset for Demo Presentation
+  // Complete System Data Reset
   resetAllData(): void {
     localStorage.removeItem(STORAGE_KEYS.PROBLEMS);
     localStorage.removeItem(STORAGE_KEYS.CHALLENGES);

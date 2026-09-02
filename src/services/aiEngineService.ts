@@ -144,7 +144,7 @@ export class AIEngineService {
       technicalSuitability += 5;
       feasibility -= 7;
       costEfficiency -= 12;
-      aiRemarks = 'High-tech robotics demonstration, but mechanical maintenance and capital expenditure are elevated for rural local bodies.';
+      aiRemarks = 'High-tech robotics proposal, but mechanical maintenance and capital expenditure are elevated for rural local bodies.';
     }
 
     // Cost efficiency adjustment based on ₹4.5 Lakh benchmark

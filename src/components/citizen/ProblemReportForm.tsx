@@ -405,7 +405,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
               onClick={handleUseDemoVoice}
               className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
             >
-              <span>🎙️ Use Demo Voice (Simulation)</span>
+              <span>🎙️ Use Sample Voice Audio</span>
             </button>
           </div>
 
@@ -498,7 +498,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
                 onClick={handleUseDemoImage}
                 className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
               >
-                <span>📷 Use Demo Image (Simulation)</span>
+                <span>📷 Use Sample Image</span>
               </button>
             </div>
           )}
@@ -566,7 +566,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
               onClick={handleUseDemoLocation}
               className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
             >
-              <span>📍 Use Demo Location (Jharkhand)</span>
+              <span>📍 Use Sample Location</span>
             </button>
           </div>
 
@@ -589,7 +589,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
               </div>
               {usingDemoLocation && (
                 <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                  Demo Seed
+                  Sample Location
                 </span>
               )}
             </div>

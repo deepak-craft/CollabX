@@ -64,7 +64,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
       targetRole: 'citizen',
     });
 
-    alert(`Grievance ${problem.id} successfully verified! You can now convert it into an Open Hackathon Challenge.`);
+    alert(`Grievance ${problem.id} successfully verified! You can now convert it into an Open Challenge.`);
   };
 
   const handleReject = (problem: ProblemReport) => {

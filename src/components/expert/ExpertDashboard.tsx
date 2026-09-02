@@ -17,12 +17,34 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 export const ExpertDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { t } = useAccessibility();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
-  const [activeTab, setActiveTab] = useState<'challenges' | 'compare' | 'audit' | 'link_collab'>('compare');
+
+  const getTabFromPath = (): 'challenges' | 'compare' | 'audit' | 'link_collab' => {
+    if (location.pathname.endsWith('/reviews')) return 'challenges';
+    if (location.pathname.endsWith('/compare')) return 'compare';
+    if (location.pathname.endsWith('/decisions')) return 'audit';
+    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
+    return 'compare';
+  };
+
+  const [activeTab, setActiveTab] = useState<'challenges' | 'compare' | 'audit' | 'link_collab'>(getTabFromPath());
+
+  React.useEffect(() => {
+    setActiveTab(getTabFromPath());
+  }, [location.pathname]);
+
+  const handleTabChange = (tab: 'challenges' | 'compare' | 'audit' | 'link_collab', path: string) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge>(challenges[0]);
   const [auditLogs] = useState(() => storageService.getAuditLogs());
 
@@ -61,7 +83,7 @@ export const ExpertDashboard: React.FC = () => {
       {/* Tabs */}
       <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('compare')}
+          onClick={() => handleTabChange('compare', '/expert/compare')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'compare'
               ? 'bg-purple-800 text-white shadow-sm'
@@ -73,7 +95,7 @@ export const ExpertDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('challenges')}
+          onClick={() => handleTabChange('challenges', '/expert/reviews')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'challenges'
               ? 'bg-purple-800 text-white shadow-sm'
@@ -88,7 +110,7 @@ export const ExpertDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('audit')}
+          onClick={() => handleTabChange('audit', '/expert/decisions')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'audit'
               ? 'bg-purple-800 text-white shadow-sm'
@@ -100,7 +122,7 @@ export const ExpertDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('link_collab')}
+          onClick={() => handleTabChange('link_collab', '/expert/link-collab')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'link_collab'
               ? 'bg-purple-800 text-white shadow-sm'

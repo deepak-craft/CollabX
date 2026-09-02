@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AccessibilityProvider, useAccessibility } from './context/AccessibilityContext';
+import { AccessibilityProvider } from './context/AccessibilityContext';
 import { GovHeader } from './components/common/GovHeader';
-import { DemoController } from './components/common/DemoController';
 import { LandingPage } from './components/landing/LandingPage';
+import { CitizenLoginPage } from './components/auth/CitizenLoginPage';
+import { UniversityLoginPage } from './components/auth/UniversityLoginPage';
+import { IndustryLoginPage } from './components/auth/IndustryLoginPage';
+import { RestrictedAccessPage } from './components/auth/RestrictedAccessPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
 import { CitizenDashboard } from './components/citizen/CitizenDashboard';
 import { UniversityPortal } from './components/university/UniversityPortal';
 import { IndustryDashboard } from './components/industry/IndustryDashboard';
@@ -11,63 +17,88 @@ import { GovDashboard } from './components/government/GovDashboard';
 import { ExpertDashboard } from './components/expert/ExpertDashboard';
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, showLandingPage, setShowLandingPage } = useAuth();
-  const { t } = useAccessibility();
-  const [demoStep, setDemoStep] = useState<number>(1);
+  const { currentUser } = useAuth();
+  const location = useLocation();
+
   const [refreshKey, setRefreshKey] = useState<number>(0);
 
-  // If user navigated back to landing page, show LandingPage component
-  if (showLandingPage) {
-    return <LandingPage onEnterApp={() => setShowLandingPage(false)} />;
-  }
-
-  const handleSelectDemoStep = (step: number) => {
-    setDemoStep(step);
-    setRefreshKey(prev => prev + 1);
-  };
-
-  const handleResetDemo = () => {
-    setDemoStep(1);
-    setRefreshKey(prev => prev + 1);
-  };
+  const isPublicAuthRoute = 
+    location.pathname === '/' || 
+    location.pathname.startsWith('/login');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800 pb-16">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800">
       {/* GovTech Header */}
       <GovHeader />
 
-      {/* Main Content Area - Keyed to force clean remount on portal/persona switch */}
+      {/* Main Router Content Area */}
       <main 
         id="main-content" 
-        className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6" 
-        key={`${currentUser.id}-${currentUser.role}-${currentUser.subRole}-${demoStep}-${refreshKey}`}
+        className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6"
+        key={`${currentUser.id}-${currentUser.role}-${currentUser.subRole}-${refreshKey}`}
       >
-        {/* Role-Based Router */}
-        {currentUser.role === 'citizen' && (
-          <CitizenDashboard
-            initialTab={demoStep === 10 ? 'my_reports' : demoStep === 1 ? 'report' : 'home'}
+        <Routes>
+          {/* Public Landing & Login Forms */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LandingPage />} />
+          <Route path="/login/citizen" element={<CitizenLoginPage />} />
+          <Route path="/login/university" element={<UniversityLoginPage />} />
+          <Route path="/login/industry" element={<IndustryLoginPage />} />
+          <Route path="/login/restricted" element={<RestrictedAccessPage />} />
+
+          {/* Protected Citizen Routes */}
+          <Route
+            path="/citizen/*"
+            element={
+              <ProtectedRoute allowedRoles={['citizen']}>
+                <CitizenDashboard />
+              </ProtectedRoute>
+            }
           />
-        )}
 
-        {(currentUser.role === 'student' || currentUser.role === 'professor') && (
-          <UniversityPortal
-            initialTab={demoStep === 9 ? 'project' : demoStep === 5 ? 'challenges' : 'challenges'}
+          {/* Protected University Routes (Student & Professor) */}
+          <Route
+            path="/university/*"
+            element={
+              <ProtectedRoute allowedRoles={['student', 'professor']}>
+                <UniversityPortal />
+              </ProtectedRoute>
+            }
           />
-        )}
 
-        {currentUser.role === 'industry' && (
-          <IndustryDashboard />
-        )}
-
-        {currentUser.role === 'government' && (
-          <GovDashboard
-            initialTab={demoStep === 3 ? 'verification' : demoStep === 11 ? 'impact' : 'executive'}
+          {/* Protected Industry Routes */}
+          <Route
+            path="/industry/*"
+            element={
+              <ProtectedRoute allowedRoles={['industry']}>
+                <IndustryDashboard />
+              </ProtectedRoute>
+            }
           />
-        )}
 
-        {currentUser.role === 'expert' && (
-          <ExpertDashboard />
-        )}
+          {/* Protected Government Routes */}
+          <Route
+            path="/government/*"
+            element={
+              <ProtectedRoute allowedRoles={['government']}>
+                <GovDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Domain Expert Routes */}
+          <Route
+            path="/expert/*"
+            element={
+              <ProtectedRoute allowedRoles={['expert']}>
+                <ExpertDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {/* Official GovTech Footer */}
@@ -80,13 +111,13 @@ const MainAppContent: React.FC = () => {
               <span className="font-medium text-slate-700">Connecting Problems, Ideas & Impact</span>
             </div>
             <div className="text-slate-500 text-[11px]">
-              Smart India Hackathon 2024 • SIH26043 GovTech Platform
+              Government of Jharkhand
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
             <p>
-              Demonstration GovTech prototype for the Government of Jharkhand. AI models provide automated decision support; all final selection decisions are rendered by verified human experts.
+              Official digital platform for the Government of Jharkhand. AI models provide automated decision support; all final selection decisions are rendered by verified human experts.
             </p>
             <div className="flex items-center space-x-4">
               <span>WGS84 GIS Standards</span>
@@ -96,23 +127,18 @@ const MainAppContent: React.FC = () => {
           </div>
         </div>
       </footer>
-
-      {/* SIH Presentation Demo Controller (docked at the bottom) */}
-      <DemoController
-        currentStep={demoStep}
-        onSelectStep={handleSelectDemoStep}
-        onReset={handleResetDemo}
-      />
     </div>
   );
 };
 
 export default function App() {
   return (
-    <AccessibilityProvider>
-      <AuthProvider>
-        <MainAppContent />
-      </AuthProvider>
-    </AccessibilityProvider>
+    <BrowserRouter>
+      <AccessibilityProvider>
+        <AuthProvider>
+          <MainAppContent />
+        </AuthProvider>
+      </AccessibilityProvider>
+    </BrowserRouter>
   );
 }

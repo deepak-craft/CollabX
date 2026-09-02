@@ -23,6 +23,8 @@ import {
   Shield
 } from 'lucide-react';
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 interface CitizenDashboardProps {
   initialTab?: string;
 }
@@ -30,11 +32,28 @@ interface CitizenDashboardProps {
 export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab = 'home' }) => {
   const { currentUser } = useAuth();
   const { t } = useAccessibility();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  // Determine active tab based on URL path or initialTab
+  const getTabFromPath = () => {
+    if (location.pathname.endsWith('/report')) return 'report';
+    if (location.pathname.endsWith('/nearby')) return 'nearby';
+    if (location.pathname.endsWith('/reports')) return 'my_reports';
+    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
+    return initialTab;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getTabFromPath());
+
   React.useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    setActiveTab(getTabFromPath());
+  }, [location.pathname, initialTab]);
+
+  const handleTabChange = (tab: string, path: string) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
   const [problems, setProblems] = useState<ProblemReport[]>(() => storageService.getProblems());
   const [isFeedbackOpen, setIsFeedbackOpen] = useState<boolean>(false);
   const [feedbackProjectId, setFeedbackProjectId] = useState<string>('PROJ-JH-2024-001');
@@ -57,7 +76,7 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab =
       {/* Citizen Portal Sub-Navigation Tabs */}
       <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('home')}
+          onClick={() => handleTabChange('home', '/citizen')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'home'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -69,7 +88,7 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('report')}
+          onClick={() => handleTabChange('report', '/citizen/report')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'report'
               ? 'bg-gov-saffron text-white shadow-sm'
@@ -81,7 +100,7 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('nearby')}
+          onClick={() => handleTabChange('nearby', '/citizen/nearby')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'nearby'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -93,7 +112,7 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('my_reports')}
+          onClick={() => handleTabChange('my_reports', '/citizen/reports')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'my_reports'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -110,15 +129,15 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('link_collab')}
+          onClick={() => handleTabChange('link_collab', '/citizen/link-collab')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'link_collab'
               ? 'bg-gov-navy text-white shadow-sm'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <MessageSquare className="w-4 h-4" />
-          <span>{t('Link Collab Community', 'लिंक कोलैब संवाद')}</span>
+          <MessageSquare className="w-4 h-4 text-gov-saffron" />
+          <span>{t('Link Collab Advisory', 'लिंक सहभागिता')}</span>
         </button>
       </div>
 

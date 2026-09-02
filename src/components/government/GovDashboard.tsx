@@ -36,6 +36,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 interface GovDashboardProps {
   initialTab?: string;
 }
@@ -43,11 +45,29 @@ interface GovDashboardProps {
 export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'executive' }) => {
   const { currentUser } = useAuth();
   const { t } = useAccessibility();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const getTabFromPath = () => {
+    if (location.pathname.endsWith('/problems')) return 'verification';
+    if (location.pathname.endsWith('/challenges')) return 'challenges';
+    if (location.pathname.endsWith('/projects')) return 'impact';
+    if (location.pathname.endsWith('/impact')) return 'impact';
+    if (location.pathname.endsWith('/replication')) return 'replication';
+    if (location.pathname.endsWith('/audit')) return 'audit';
+    return initialTab;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getTabFromPath());
+
   React.useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    setActiveTab(getTabFromPath());
+  }, [location.pathname, initialTab]);
+
+  const handleTabChange = (tab: string, path: string) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
   const [problems] = useState<ProblemReport[]>(() => storageService.getProblems());
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
   const [auditLogs] = useState(() => storageService.getAuditLogs());
@@ -105,7 +125,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
       {/* Navigation Tabs */}
       <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('executive')}
+          onClick={() => handleTabChange('executive', '/government')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'executive'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -117,7 +137,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
         </button>
 
         <button
-          onClick={() => setActiveTab('verification')}
+          onClick={() => handleTabChange('verification', '/government/problems')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'verification'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -132,7 +152,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
         </button>
 
         <button
-          onClick={() => setActiveTab('challenges')}
+          onClick={() => handleTabChange('challenges', '/government/challenges')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'challenges'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -147,7 +167,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
         </button>
 
         <button
-          onClick={() => setActiveTab('impact')}
+          onClick={() => handleTabChange('impact', '/government/impact')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'impact'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -159,7 +179,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
         </button>
 
         <button
-          onClick={() => setActiveTab('replication')}
+          onClick={() => handleTabChange('replication', '/government/replication')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'replication'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -171,7 +191,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
         </button>
 
         <button
-          onClick={() => setActiveTab('audit')}
+          onClick={() => handleTabChange('audit', '/government/audit')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'audit'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -217,7 +237,7 @@ export const GovDashboard: React.FC<GovDashboardProps> = ({ initialTab = 'execut
             >
               <span className="text-[10px] uppercase font-bold text-gov-blue">Open Challenges</span>
               <div className="text-2xl font-black text-gov-blue mt-1 font-mono">14</div>
-              <span className="text-[10px] text-gov-blue font-semibold">In Varsity Hackathons</span>
+              <span className="text-[10px] text-gov-blue font-semibold">In Varsity Challenges</span>
             </div>
 
             <div

@@ -23,11 +23,32 @@ import {
   X as XIcon
 } from 'lucide-react';
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 export const IndustryDashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const { t } = useAccessibility();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab'>('opportunities');
+  const getTabFromPath = (): 'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab' => {
+    if (location.pathname.endsWith('/collaborations')) return 'collabs';
+    if (location.pathname.endsWith('/projects')) return 'workspace';
+    if (location.pathname.endsWith('/profile')) return 'profile';
+    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
+    return 'opportunities';
+  };
+
+  const [activeTab, setActiveTab] = useState<'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab'>(getTabFromPath());
+
+  React.useEffect(() => {
+    setActiveTab(getTabFromPath());
+  }, [location.pathname]);
+
+  const handleTabChange = (tab: 'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab', path: string) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
   const [collaborations, setCollaborations] = useState<CollaborationOffer[]>(() => storageService.getCollaborations());
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -98,7 +119,7 @@ export const IndustryDashboard: React.FC = () => {
       {/* Tabs */}
       <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('opportunities')}
+          onClick={() => handleTabChange('opportunities', '/industry/opportunities')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'opportunities'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -110,7 +131,7 @@ export const IndustryDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('collabs')}
+          onClick={() => handleTabChange('collabs', '/industry/collaborations')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'collabs'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -125,7 +146,7 @@ export const IndustryDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('workspace')}
+          onClick={() => handleTabChange('workspace', '/industry/projects')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'workspace'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -137,7 +158,7 @@ export const IndustryDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('profile')}
+          onClick={() => handleTabChange('profile', '/industry/profile')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'profile'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -149,7 +170,7 @@ export const IndustryDashboard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('link_collab')}
+          onClick={() => handleTabChange('link_collab', '/industry/link-collab')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'link_collab'
               ? 'bg-gov-navy text-white shadow-sm'

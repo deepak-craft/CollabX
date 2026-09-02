@@ -77,7 +77,7 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
             <div className="flex items-center space-x-2">
               <Target className="w-5 h-5 text-gov-saffron" />
               <h2 className="text-lg font-bold text-gov-navy">
-                {t('Open GovTech Challenges (Statewide Hackathon Pool)', 'खुली राज्यस्तरीय चुनौतियाँ')}
+                {t('Open GovTech Challenges (Statewide Challenge Pool)', 'खुली राज्यस्तरीय चुनौतियाँ')}
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">

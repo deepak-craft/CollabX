@@ -19,6 +19,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { useLocation, useNavigate } from 'react-router-dom';
+
 interface UniversityPortalProps {
   initialTab?: string;
 }
@@ -26,12 +28,30 @@ interface UniversityPortalProps {
 export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab = 'challenges' }) => {
   const { currentUser, loginAs } = useAuth();
   const { t } = useAccessibility();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isProfessor = currentUser.role === 'professor';
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  const getTabFromPath = () => {
+    if (location.pathname.endsWith('/challenges')) return 'challenges';
+    if (location.pathname.endsWith('/ideas')) return isProfessor ? 'mentor_ideas' : 'my_ideas';
+    if (location.pathname.endsWith('/team')) return 'team';
+    if (location.pathname.endsWith('/projects')) return 'project';
+    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
+    return initialTab;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getTabFromPath());
+
   React.useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    setActiveTab(getTabFromPath());
+  }, [location.pathname, initialTab]);
+
+  const handleTabChange = (tab: string, path: string) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
   const [ideas] = useState(() => storageService.getIdeas());
 
   const handleSwitchSubRole = (subRole: 'Student' | 'Professor') => {
@@ -88,7 +108,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
       {/* Tabs */}
       <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('challenges')}
+          onClick={() => handleTabChange('challenges', '/university/challenges')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'challenges'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -101,7 +121,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
 
         {isProfessor ? (
           <button
-            onClick={() => setActiveTab('proposals')}
+            onClick={() => handleTabChange('proposals', '/university/ideas')}
             className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
               activeTab === 'proposals'
                 ? 'bg-gov-navy text-white shadow-sm'
@@ -113,7 +133,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
           </button>
         ) : (
           <button
-            onClick={() => setActiveTab('my_ideas')}
+            onClick={() => handleTabChange('my_ideas', '/university/ideas')}
             className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
               activeTab === 'my_ideas'
                 ? 'bg-gov-navy text-white shadow-sm'
@@ -129,7 +149,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         )}
 
         <button
-          onClick={() => setActiveTab('team')}
+          onClick={() => handleTabChange('team', '/university/team')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'team'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -141,7 +161,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('project')}
+          onClick={() => handleTabChange('project', '/university/projects')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'project'
               ? 'bg-gov-navy text-white shadow-sm'
@@ -153,7 +173,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => setActiveTab('link_collab')}
+          onClick={() => handleTabChange('link_collab', '/university/link-collab')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
             activeTab === 'link_collab'
               ? 'bg-gov-navy text-white shadow-sm'

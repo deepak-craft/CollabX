@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -26,6 +27,8 @@ interface GovHeaderProps {
 }
 
 export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, allPersonas, selectPersona, loginAs, logout } = useAuth();
   const {
     fontSize,
@@ -55,6 +58,25 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
     setSearchTerm(e.target.value);
     if (onSearch) {
       onSearch(e.target.value);
+    }
+  };
+
+  const handleNavigatePortal = (role: 'citizen' | 'student' | 'industry' | 'government' | 'expert') => {
+    if (role === 'citizen') {
+      loginAs('citizen', 'Citizen');
+      navigate('/citizen');
+    } else if (role === 'student') {
+      loginAs('student', 'Student');
+      navigate('/university');
+    } else if (role === 'industry') {
+      loginAs('industry', 'Industry Partner');
+      navigate('/industry');
+    } else if (role === 'government') {
+      loginAs('government', 'Government Officer');
+      navigate('/government');
+    } else if (role === 'expert') {
+      loginAs('expert', 'Domain Expert');
+      navigate('/expert');
     }
   };
 
@@ -107,10 +129,6 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           <span className="font-semibold text-white">झारखंड सरकार</span>
           <span className="text-slate-400">|</span>
           <span>GOVERNMENT OF JHARKHAND</span>
-          <span className="hidden md:inline text-slate-400">•</span>
-          <span className="hidden md:inline text-gov-saffron-amber font-medium">
-            Smart India Hackathon (SIH26043) GovTech Pilot
-          </span>
         </div>
 
         {/* Accessibility & Language Quick Bar */}
@@ -183,8 +201,8 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
 
       {/* Main Gov Header */}
       <div className="px-4 sm:px-8 py-2.5 flex items-center justify-between gap-4">
-        {/* Logo & Identity - Clicking goes back to Landing Page */}
-        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => logout()} title="Return to Landing Page">
+        {/* Logo & Identity */}
+        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')} title="Return to Portal Home">
           <div className="w-11 h-11 rounded-full bg-gov-navy flex items-center justify-center text-white border-2 border-gov-saffron shadow-sm flex-shrink-0">
             <svg className="w-7 h-7" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="44" fill="none" stroke="#FF9933" strokeWidth="4" />
@@ -280,7 +298,7 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
               <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-gov-lg border border-gov-border z-50 overflow-hidden">
                 <div className="bg-slate-50 p-3 border-b border-slate-200">
                   <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    {t('Switch Demo Persona (SIH Testing)', 'डेमो प्रोफाइल बदलें')}
+                    {t('Switch User Profile', 'प्रोफाइल बदलें')}
                   </div>
                   <div className="text-xs text-slate-700 font-medium mt-1">
                     {currentUser.organization} • {currentUser.district}
@@ -294,6 +312,12 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                       onClick={() => {
                         selectPersona(persona);
                         setIsPersonaMenuOpen(false);
+                        const dest = 
+                          persona.role === 'citizen' ? '/citizen' :
+                          persona.role === 'student' || persona.role === 'professor' ? '/university' :
+                          persona.role === 'industry' ? '/industry' :
+                          persona.role === 'government' ? '/government' : '/expert';
+                        navigate(dest);
                       }}
                       className={`w-full p-2.5 text-left text-xs flex items-center space-x-3 transition hover:bg-blue-50 ${
                         persona.id === currentUser.id ? 'bg-blue-50/80 font-bold border-l-4 border-gov-blue' : ''
@@ -313,18 +337,18 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                   ))}
                 </div>
 
-                <div className="p-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+                <div className="p-2 bg-slate-50 border-t border-slate-200 flex justify-start items-center">
                   <button
                     onClick={() => {
                       setIsPersonaMenuOpen(false);
                       logout();
+                      navigate('/');
                     }}
                     className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center space-x-1 p-1 rounded hover:bg-red-50"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>{t('Main Login Portal', 'लॉगिन पोर्टल पर जाएं')}</span>
                   </button>
-                  <span className="text-[10px] text-slate-400">SIH26043</span>
                 </div>
               </div>
             )}
@@ -336,17 +360,21 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
       <div className="bg-slate-100 border-t border-gov-border px-4 sm:px-8 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex flex-wrap items-center gap-1.5 font-bold">
           <button
-            onClick={() => logout()}
-            className="px-3 py-1.5 rounded bg-white hover:bg-slate-200 text-slate-800 border border-slate-300 flex items-center space-x-1 shadow-xs transition"
+            onClick={() => navigate('/')}
+            className={`px-3 py-1.5 rounded border flex items-center space-x-1 shadow-xs transition ${
+              location.pathname === '/' || location.pathname.startsWith('/login')
+                ? 'bg-gov-navy text-white font-bold border-gov-navy'
+                : 'bg-white hover:bg-slate-200 text-slate-800 border-slate-300'
+            }`}
           >
             <Home className="w-3.5 h-3.5 text-gov-saffron" />
-            <span>Home (Portal Access)</span>
+            <span>Home</span>
           </button>
 
           <button
-            onClick={() => loginAs('citizen', 'Citizen')}
+            onClick={() => handleNavigatePortal('citizen')}
             className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-              currentUser.role === 'citizen'
+              location.pathname.startsWith('/citizen')
                 ? 'bg-gov-navy text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
             }`}
@@ -356,9 +384,9 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           </button>
 
           <button
-            onClick={() => loginAs('student', 'Student')}
+            onClick={() => handleNavigatePortal('student')}
             className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-              currentUser.role === 'student' || currentUser.role === 'professor'
+              location.pathname.startsWith('/university')
                 ? 'bg-gov-navy text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
             }`}
@@ -368,9 +396,9 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           </button>
 
           <button
-            onClick={() => loginAs('industry', 'Industry Partner')}
+            onClick={() => handleNavigatePortal('industry')}
             className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-              currentUser.role === 'industry'
+              location.pathname.startsWith('/industry')
                 ? 'bg-gov-navy text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
             }`}
@@ -380,9 +408,9 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           </button>
 
           <button
-            onClick={() => loginAs('government', 'Government Officer')}
+            onClick={() => handleNavigatePortal('government')}
             className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-              currentUser.role === 'government'
+              location.pathname.startsWith('/government')
                 ? 'bg-gov-navy text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
             }`}
@@ -392,9 +420,9 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           </button>
 
           <button
-            onClick={() => loginAs('expert', 'Domain Expert')}
+            onClick={() => handleNavigatePortal('expert')}
             className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-              currentUser.role === 'expert'
+              location.pathname.startsWith('/expert')
                 ? 'bg-purple-800 text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
             }`}
@@ -404,8 +432,8 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-500 font-semibold hidden md:block">
-          Active View: <span className="text-gov-navy uppercase font-bold">{currentUser.subRole || currentUser.role}</span>
+        <div className="text-[11px] text-slate-500 font-semibold hidden md:block font-mono">
+          Route: <span className="text-gov-navy font-bold">{location.pathname}</span>
         </div>
       </div>
 

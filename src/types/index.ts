@@ -1,4 +1,4 @@
-// Domain Types for COLLABX GovTech Platform (SIH26043)
+// Domain Types for COLLABX GovTech Platform
 
 export type UserRole = 'citizen' | 'student' | 'professor' | 'industry' | 'government' | 'expert';
 

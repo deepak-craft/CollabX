@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ProblemReport } from '../../types';
 import { AIEngineService } from '../../services/aiEngineService';
 import { storageService } from '../../services/storageService';
@@ -16,7 +16,11 @@ import {
   Info, 
   Copy, 
   Send,
-  Volume2
+  Volume2,
+  Play,
+  Trash2,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 interface ProblemReportFormProps {
@@ -33,24 +37,240 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
   const [description, setDescription] = useState('');
   const [district, setDistrict] = useState('Ranchi');
   const [locality, setLocality] = useState('Harmu Bypass, Ward 14');
-  const [coordinates, setCoordinates] = useState({ lat: 23.3541, lng: 85.3211 });
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [affectedPop, setAffectedPop] = useState(4500);
   const [frequency, setFrequency] = useState('Every monsoon rain (15+ times/year)');
-  const [evidenceUrl, setEvidenceUrl] = useState('https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80');
 
-  // Interactive Voice Note Simulation
+  // ====================================================
+  // 1. VOICE RECORDING (MediaRecorder API)
+  // ====================================================
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioTranscript, setAudioTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [usingDemoVoice, setUsingDemoVoice] = useState(false);
 
-  // Interactive Camera Simulation
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<any>(null);
+
+  // Timer effect for voice recording
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isRecording]);
+
+  const startVoiceRecording = async () => {
+    setVoiceError(null);
+    setAudioUrl(null);
+    setAudioBlob(null);
+    setAudioTranscript('');
+    setUsingDemoVoice(false);
+    audioChunksRef.current = [];
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setVoiceError('Browser Voice Recording API not supported on this browser. Please use the Demo Voice option below.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlobObj = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(audioBlobObj);
+        setAudioBlob(audioBlobObj);
+        setAudioUrl(url);
+        // Clean up tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+    } catch (err: any) {
+      console.error('Microphone access error:', err);
+      setVoiceError(err.message || 'Microphone access denied or unavailable. Please check browser permissions.');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const deleteVoiceRecording = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioUrl(null);
+    setAudioBlob(null);
+    setAudioTranscript('');
+    setVoiceError(null);
+    setUsingDemoVoice(false);
+  };
+
+  const handleUseDemoVoice = () => {
+    deleteVoiceRecording();
+    setUsingDemoVoice(true);
+    const demoVoiceText = 'Every monsoon, water enters this road and school children cannot cross. The main culvert is choked and water stands for 8 hours.';
+    setAudioTranscript(demoVoiceText);
+    if (!description) {
+      setDescription(demoVoiceText);
+    }
+    if (!title) {
+      setTitle('Waterlogging in Harmu bypass cutting off school access');
+    }
+  };
+
+  // ====================================================
+  // 2. CAMERA CAPTURE (getUserMedia Video Stream)
+  // ====================================================
   const [cameraActive, setCameraActive] = useState(false);
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(
+    'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80'
+  );
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [usingDemoImage, setUsingDemoImage] = useState(false);
 
-  // Instant AI Analysis State
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const startCamera = async () => {
+    setCameraError(null);
+    setCameraActive(true);
+    setUsingDemoImage(false);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Browser Camera API not supported on this device. Use Upload Photo or Demo Image.');
+      setCameraActive(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      setCameraError(err.message || 'Camera permission denied or camera not available.');
+      setCameraActive(false);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setCapturedPhotoUrl(dataUrl);
+      }
+    }
+    stopCamera();
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const url = URL.createObjectURL(file);
+      setCapturedPhotoUrl(url);
+      setUsingDemoImage(false);
+    }
+  };
+
+  const handleUseDemoImage = () => {
+    stopCamera();
+    setCapturedPhotoUrl('https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=600&q=80');
+    setUsingDemoImage(true);
+  };
+
+  // ====================================================
+  // 3. GPS LOCATION (navigator.geolocation)
+  // ====================================================
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationSuccess, setLocationSuccess] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [usingDemoLocation, setUsingDemoLocation] = useState(false);
+
+  const fetchBrowserGPS = () => {
+    setIsLocating(true);
+    setLocationError(null);
+    setLocationSuccess(false);
+    setUsingDemoLocation(false);
+
+    if (!navigator.geolocation) {
+      setLocationError('Browser Geolocation API is not supported on this device.');
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const lat = parseFloat(position.coords.latitude.toFixed(4));
+        const lng = parseFloat(position.coords.longitude.toFixed(4));
+        setCoordinates({ lat, lng });
+        setLocationSuccess(true);
+        setIsLocating(false);
+      },
+      error => {
+        console.error('GPS Location error:', error);
+        setLocationError(`GPS Error: ${error.message} (Code ${error.code})`);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const handleUseDemoLocation = () => {
+    setCoordinates({ lat: 23.3541, lng: 85.3211 });
+    setDistrict('Ranchi');
+    setLocality('Harmu Bypass, Ward 14');
+    setUsingDemoLocation(true);
+    setLocationSuccess(true);
+    setLocationError(null);
+  };
+
+  // ====================================================
+  // INSTANT AI ANALYSIS ENGINE
+  // ====================================================
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Auto-run AI Analysis when description changes
   useEffect(() => {
     if (description.trim().length > 15) {
       setIsAnalyzing(true);
@@ -66,52 +286,10 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
     }
   }, [title, description, locality]);
 
-  // Voice recording timer simulation
-  useEffect(() => {
-    let interval: any;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingSeconds(0);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
-
-  const handleStartVoice = () => {
-    setIsRecording(true);
-    setAudioTranscript('');
-  };
-
-  const handleStopVoice = () => {
-    setIsRecording(false);
-    const demoVoiceText = 'Every monsoon, water enters this road and school children cannot cross. The main culvert is choked and water stands for 8 hours.';
-    setAudioTranscript(demoVoiceText);
-    if (!description) {
-      setDescription(demoVoiceText);
-    }
-    if (!title) {
-      setTitle('Waterlogging in Harmu bypass cutting off school access');
-    }
-  };
-
-  const handleSimulateCameraCapture = () => {
-    setCameraActive(true);
-    setTimeout(() => {
-      setEvidenceUrl('https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=600&q=80');
-      setCameraActive(false);
-    }, 1200);
-  };
-
-  const handleUseCurrentLocation = () => {
-    setDistrict('Ranchi');
-    setLocality('Harmu Bypass, Ward 14');
-    setCoordinates({ lat: 23.3541, lng: 85.3211 });
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const finalCoordinates = coordinates || { lat: 23.3541, lng: 85.3211 };
 
     const existingProblems = storageService.getProblems();
     const finalAiAnalysis = aiAnalysis || AIEngineService.analyzeProblem(title, description, locality, existingProblems);
@@ -121,15 +299,15 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       title: title || 'Monsoon Waterlogging in Harmu Corridor',
       description: description || 'Severe waterlogging disrupts normal traffic and pedestrian movement.',
       citizenName: currentUser.name,
-      citizenPhone: '+91 94311 02841',
+      citizenPhone: '+91 98765 43210',
       district,
       panchayatOrLocality: locality,
-      coordinates,
+      coordinates: finalCoordinates,
       affectedPopulation: Number(affectedPop),
       frequency,
-      evidenceUrls: [evidenceUrl],
+      evidenceUrls: capturedPhotoUrl ? [capturedPhotoUrl] : [],
       audioTranscript: audioTranscript || undefined,
-      hasVoiceNote: Boolean(audioTranscript),
+      hasVoiceNote: Boolean(audioUrl || audioTranscript),
       communityConfirmations: 1,
       status: 'ai_analyzed',
       aiAnalysis: finalAiAnalysis,
@@ -148,7 +326,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       ipHash: '10.42.12.8 [Citizen Mobile Portal]',
     });
 
-    // In-app alert
+    // Notification
     storageService.addNotification({
       id: `notif-${Date.now()}`,
       title: 'Civic Problem Submitted',
@@ -173,72 +351,252 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
           {t('Report a Civic Problem', 'नागरिक समस्या दर्ज करें')}
         </h2>
         <p className="text-xs text-slate-500 mt-1">
-          {t('Describe the problem in your own words. Our AI assistant will categorize and structure the report for official review.', 'अपनी भाषा में समस्या का विवरण दें।')}
+          {t('Record voice notes, capture live photos, and pinpoint browser GPS coordinates.', 'अपनी भाषा में समस्या का विवरण दें।')}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* TOP QUICK INPUT PILLS: Voice, Camera, GPS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-          {/* 1. Voice Record Simulator */}
-          <div>
+        {/* ==================================================== */}
+        {/* 1. VOICE RECORDING SECTION (MediaRecorder API)       */}
+        {/* ==================================================== */}
+        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-gov-navy uppercase tracking-wider flex items-center space-x-1.5">
+              <Mic className="w-4 h-4 text-gov-saffron" />
+              <span>1. Voice Note Recording (Browser MediaRecorder API)</span>
+            </label>
+            <span className="text-[10px] text-slate-500 font-mono">Microphone Hardware Access</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             {!isRecording ? (
               <button
                 type="button"
-                onClick={handleStartVoice}
-                className="w-full py-2.5 px-3 bg-white border border-slate-300 hover:border-gov-saffron rounded text-xs font-semibold text-slate-700 hover:text-gov-saffron flex items-center justify-center space-x-2 transition shadow-sm"
+                onClick={startVoiceRecording}
+                className="py-2 px-3 bg-gov-navy hover:bg-gov-navy-dark text-white rounded text-xs font-bold flex items-center space-x-1.5 transition shadow-xs"
               >
-                <Mic className="w-4 h-4 text-gov-saffron" />
-                <span>🎙️ {t('Record Voice Note', 'आवाज रिकॉर्ड करें')}</span>
+                <Mic className="w-3.5 h-3.5 text-gov-saffron" />
+                <span>🎙️ Record Voice (Browser Mic)</span>
               </button>
             ) : (
               <button
                 type="button"
-                onClick={handleStopVoice}
-                className="w-full py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold flex items-center justify-center space-x-2 animate-pulse shadow-sm"
+                onClick={stopVoiceRecording}
+                className="py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold flex items-center space-x-1.5 animate-pulse shadow-xs"
               >
-                <Square className="w-4 h-4" />
-                <span>Stop Recording ({recordingSeconds}s)</span>
+                <Square className="w-3.5 h-3.5" />
+                <span>⏹️ Stop Recording ({recordingSeconds}s)</span>
               </button>
             )}
-          </div>
 
-          {/* 2. Camera Capture Simulator */}
-          <div>
+            {audioUrl && (
+              <button
+                type="button"
+                onClick={deleteVoiceRecording}
+                className="py-2 px-3 bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 rounded text-xs font-bold flex items-center space-x-1 transition"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Recording</span>
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={handleSimulateCameraCapture}
-              className="w-full py-2.5 px-3 bg-white border border-slate-300 hover:border-gov-blue rounded text-xs font-semibold text-slate-700 hover:text-gov-blue flex items-center justify-center space-x-2 transition shadow-sm"
+              onClick={handleUseDemoVoice}
+              className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
             >
-              <Camera className="w-4 h-4 text-gov-blue" />
-              <span>📷 {cameraActive ? t('Capturing Photo...', 'फ़ोटो ले रहे हैं...') : t('Capture / Add Photo', 'फ़ोटो कैप्चर करें')}</span>
+              <span>🎙️ Use Demo Voice (Simulation)</span>
             </button>
           </div>
 
-          {/* 3. GPS Auto Location */}
-          <div>
-            <button
-              type="button"
-              onClick={handleUseCurrentLocation}
-              className="w-full py-2.5 px-3 bg-white border border-slate-300 hover:border-gov-green rounded text-xs font-semibold text-slate-700 hover:text-gov-green flex items-center justify-center space-x-2 transition shadow-sm"
-            >
-              <MapPin className="w-4 h-4 text-gov-green" />
-              <span>📍 {t('Use Current GPS Location', 'वर्तमान स्थान उपयोग करें')}</span>
-            </button>
-          </div>
+          {/* Error Message for Voice */}
+          {voiceError && (
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{voiceError}</span>
+            </div>
+          )}
+
+          {/* Real Audio Player */}
+          {audioUrl && (
+            <div className="p-3 bg-white rounded border border-slate-300 space-y-1">
+              <div className="flex items-center justify-between text-xs font-bold text-gov-navy">
+                <span>Recorded Audio Preview:</span>
+                <span className="text-[11px] text-emerald-600 font-mono">✅ Audio Captured ({recordingSeconds}s)</span>
+              </div>
+              <audio controls src={audioUrl} className="w-full h-8 mt-1" />
+            </div>
+          )}
+
+          {/* Audio Transcript feedback if demo or transcribed */}
+          {audioTranscript && (
+            <div className="p-2.5 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 flex items-start space-x-2">
+              <Volume2 className="w-4 h-4 text-gov-saffron flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Transcript Preview:</span> "{audioTranscript}"
+                {usingDemoVoice && <span className="block text-[10px] text-amber-700 font-semibold mt-0.5">• Preset Sample Audio Applied</span>}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Audio Transcript feedback if recorded */}
-        {audioTranscript && (
-          <div className="p-3 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 flex items-start space-x-2">
-            <Volume2 className="w-4 h-4 text-gov-saffron flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold">Audio Transcript Detected:</span> "{audioTranscript}"
-            </div>
+        {/* ==================================================== */}
+        {/* 2. CAMERA CAPTURE SECTION (getUserMedia Video Stream) */}
+        {/* ==================================================== */}
+        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-gov-navy uppercase tracking-wider flex items-center space-x-1.5">
+              <Camera className="w-4 h-4 text-gov-blue" />
+              <span>2. Camera Photo Evidence (Browser Video Stream)</span>
+            </label>
+            <span className="text-[10px] text-slate-500 font-mono">Camera Hardware Access</span>
           </div>
-        )}
 
-        {/* Title */}
+          {/* Live Video Preview Stream */}
+          {cameraActive && (
+            <div className="relative rounded overflow-hidden bg-black max-w-md mx-auto">
+              <video ref={videoRef} autoPlay playsInline className="w-full h-56 object-cover" />
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center space-x-3">
+                <button
+                  type="button"
+                  onClick={capturePhoto}
+                  className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow-md flex items-center space-x-1.5"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>📷 Take Snapshot</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="py-2 px-3 bg-slate-800 text-white font-bold text-xs rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!cameraActive && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={startCamera}
+                className="py-2 px-3 bg-gov-blue hover:bg-gov-blue-light text-white rounded text-xs font-bold flex items-center space-x-1.5 transition shadow-xs"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>📷 Open Live Camera</span>
+              </button>
+
+              <label className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 rounded text-xs font-bold flex items-center space-x-1.5 cursor-pointer shadow-xs">
+                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                <span>Upload from Device</span>
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleUseDemoImage}
+                className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
+              >
+                <span>📷 Use Demo Image (Simulation)</span>
+              </button>
+            </div>
+          )}
+
+          {cameraError && (
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{cameraError}</span>
+            </div>
+          )}
+
+          {/* Captured Photo Display */}
+          {capturedPhotoUrl && !cameraActive && (
+            <div className="flex items-center space-x-3 p-2.5 bg-white rounded border border-slate-300">
+              <img
+                src={capturedPhotoUrl}
+                alt="Captured civic evidence"
+                className="w-24 h-20 object-cover rounded border border-slate-300 flex-shrink-0"
+              />
+              <div className="text-xs text-slate-600 space-y-1">
+                <div className="font-bold text-gov-navy flex items-center space-x-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-gov-green" />
+                  <span>Photo Evidence Attached</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono">
+                  {usingDemoImage ? 'Preset Image Applied' : 'Frame Captured from Browser Media Stream'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCapturedPhotoUrl(null)}
+                  className="text-[11px] text-red-600 hover:underline font-semibold"
+                >
+                  Remove Photo
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ==================================================== */}
+        {/* 3. GPS LOCATION SECTION (Geolocation API)           */}
+        {/* ==================================================== */}
+        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-gov-navy uppercase tracking-wider flex items-center space-x-1.5">
+              <MapPin className="w-4 h-4 text-gov-green" />
+              <span>3. Geolocation Geotagging (Browser Geolocation API)</span>
+            </label>
+            <span className="text-[10px] text-slate-500 font-mono">GPS Hardware Access</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={fetchBrowserGPS}
+              disabled={isLocating}
+              className="py-2 px-3 bg-gov-green hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center space-x-1.5 transition shadow-xs"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>{isLocating ? 'Acquiring Satellite Fix...' : '📍 Use Browser GPS Location'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleUseDemoLocation}
+              className="py-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded text-xs font-bold flex items-center space-x-1 transition"
+            >
+              <span>📍 Use Demo Location (Jharkhand)</span>
+            </button>
+          </div>
+
+          {locationError && (
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+              <span>{locationError}</span>
+            </div>
+          )}
+
+          {locationSuccess && coordinates && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-900 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-gov-green flex-shrink-0" />
+                <span>
+                  <span className="font-bold">✅ Location Captured:</span> Latitude{' '}
+                  <span className="font-mono font-bold">{coordinates.lat}° N</span>, Longitude{' '}
+                  <span className="font-mono font-bold">{coordinates.lng}° E</span>
+                </span>
+              </div>
+              {usingDemoLocation && (
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
+                  Demo Seed
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Text Title Input */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
             {t('Problem Title / Brief Description *', 'समस्या का शीर्षक / संक्षिप्त विवरण *')}
@@ -268,7 +626,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
           ></textarea>
         </div>
 
-        {/* Location Details: District & Panchayat */}
+        {/* Location Details: District & Locality */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -304,11 +662,11 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
           </div>
         </div>
 
-        {/* Optional Context: Affected Pop & Frequency */}
+        {/* Optional Context */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">
-              {t('Estimated Affected Population (Optional)', 'अनुमानित प्रभावित आबादी')}
+              {t('Estimated Affected Population', 'अनुमानित प्रभावित आबादी')}
             </label>
             <input
               type="number"
@@ -328,24 +686,6 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
               onChange={e => setFrequency(e.target.value)}
               className="w-full p-2 text-sm bg-white border border-slate-300 rounded"
             />
-          </div>
-        </div>
-
-        {/* Photo Evidence Preview */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">
-            {t('Photo Evidence Attached', 'संलग्न फ़ोटो साक्ष्य')}
-          </label>
-          <div className="flex items-center space-x-3">
-            <img
-              src={evidenceUrl}
-              alt="Civic evidence"
-              className="w-20 h-16 object-cover rounded border border-slate-300"
-            />
-            <div className="text-xs text-slate-500 space-y-1">
-              <div className="font-semibold text-slate-700">Harmu_drain_choke_photo.jpg</div>
-              <div>GPS Geotagged: 23.3541° N, 85.3211° E</div>
-            </div>
           </div>
         </div>
 

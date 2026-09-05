@@ -16,9 +16,47 @@ export const CitizenLoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Mobile input handlers - strictly restrict input to digits 0-9
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Numbers only, maximum 10 digits
     const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setMobileNumber(digitsOnly);
+    if (error) setError('');
+  };
+
+  const handleMobileKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Navigation and control keys
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Escape',
+      'Enter',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+    ];
+
+    if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    // Block non-numeric key press
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleMobileBeforeInput = (e: React.SyntheticEvent<HTMLInputElement> & { data?: string }) => {
+    if (e.data && !/^[0-9]+$/.test(e.data)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleMobilePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    const digitsOnly = pastedText.replace(/\D/g, '').slice(0, 10);
     setMobileNumber(digitsOnly);
     if (error) setError('');
   };
@@ -37,6 +75,14 @@ export const CitizenLoginPage: React.FC = () => {
       if (authMode === 'mobile') {
         if (!mobileNumber) {
           setError('Please enter your 10-digit mobile number.');
+          return false;
+        }
+        if (mobileNumber.length < 10) {
+          setError('Please enter a complete 10-digit mobile number.');
+          return false;
+        }
+        if (!/^[6-9]/.test(mobileNumber)) {
+          setError('Indian mobile number must start with 6, 7, 8, or 9.');
           return false;
         }
         if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
@@ -166,6 +212,9 @@ export const CitizenLoginPage: React.FC = () => {
                       placeholder="9876543210"
                       value={mobileNumber}
                       onChange={handleMobileChange}
+                      onKeyDown={handleMobileKeyDown}
+                      onBeforeInput={handleMobileBeforeInput as any}
+                      onPaste={handleMobilePaste}
                       required
                       className="flex-1 min-w-0 block w-full px-3 py-2 text-sm border border-slate-300 rounded-r-md focus:ring-2 focus:ring-gov-blue focus:border-gov-blue font-mono"
                     />
@@ -264,3 +313,4 @@ export const CitizenLoginPage: React.FC = () => {
     </div>
   );
 };
+

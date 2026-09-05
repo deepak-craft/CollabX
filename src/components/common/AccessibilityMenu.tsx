@@ -1,6 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAccessibility } from '../../context/AccessibilityContext';
-import { Eye, Type, Sliders, Globe, X, RotateCcw, Activity, Keyboard } from 'lucide-react';
+import {
+  AlignVerticalSpaceAround,
+  Contrast,
+  Link2,
+  MousePointer2,
+  RefreshCcw,
+  SunMoon,
+  TextCursorInput,
+  Volume2,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 
 interface AccessibilityMenuProps {
   isOpen: boolean;
@@ -8,20 +21,21 @@ interface AccessibilityMenuProps {
 }
 
 export const AccessibilityMenu: React.FC<AccessibilityMenuProps> = ({ isOpen, onClose }) => {
+  const location = useLocation();
   const {
-    fontSize,
-    setFontSize,
-    highContrast,
-    setHighContrast,
-    grayscale,
-    setGrayscale,
-    reduceMotion,
-    setReduceMotion,
-    language,
-    setLanguage,
+    increaseFontSize,
+    decreaseFontSize,
     resetAccessibility,
-    t
+    t,
   } = useAccessibility();
+  const [lineHeight, setLineHeight] = useState<'normal' | 'relaxed' | 'loose'>('normal');
+  const [textSpacing, setTextSpacing] = useState(false);
+  const [highlightLinks, setHighlightLinks] = useState(false);
+  const [largeCursor, setLargeCursor] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [invertColors, setInvertColors] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const highlightedElement = useRef<HTMLElement | null>(null);
 
   // Close on Escape key
   useEffect(() => {
@@ -34,221 +48,124 @@ export const AccessibilityMenu: React.FC<AccessibilityMenuProps> = ({ isOpen, on
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    const html = document.documentElement;
+    html.classList.toggle('access-highlight-links', highlightLinks);
+    html.classList.toggle('access-large-cursor', largeCursor);
+    html.classList.toggle('access-dark-mode', darkMode);
+    html.classList.toggle('access-invert-colors', invertColors);
+    html.classList.toggle('access-text-spacing', textSpacing);
+    html.style.setProperty('--access-line-height', lineHeight === 'relaxed' ? '1.75' : lineHeight === 'loose' ? '2' : 'normal');
+    return () => {
+      html.classList.remove('access-highlight-links', 'access-large-cursor', 'access-dark-mode', 'access-invert-colors', 'access-text-spacing');
+      html.style.removeProperty('--access-line-height');
+    };
+  }, [darkMode, highlightLinks, invertColors, largeCursor, lineHeight, textSpacing]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('tts-reading-mode', ttsEnabled);
+    const stopSpeech = () => {
+      window.speechSynthesis?.cancel();
+      highlightedElement.current?.classList.remove('tts-highlight');
+      highlightedElement.current = null;
+    };
+
+    if (!ttsEnabled || !('speechSynthesis' in window)) {
+      stopSpeech();
+      return;
+    }
+
+    const supportedSelector = 'h1, h2, h3, h4, h5, h6, p, label, td, th, li, button, a, [role="alert"], [role="status"], [data-tts-card]';
+    const isVisible = (element: HTMLElement) => {
+      const style = window.getComputedStyle(element);
+      return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target || target.closest('[role="dialog"], svg, img, script, style')) return;
+
+      const element = target.closest(supportedSelector) as HTMLElement | null;
+      if (!element || !isVisible(element)) return;
+
+      const text = element.innerText.trim();
+      if (!text) return;
+
+      stopSpeech();
+      element.classList.add('tts-highlight');
+      highlightedElement.current = element;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const finish = () => {
+        element.classList.remove('tts-highlight');
+        if (highlightedElement.current === element) highlightedElement.current = null;
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') stopSpeech();
+    };
+
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+      stopSpeech();
+      document.documentElement.classList.remove('tts-reading-mode');
+    };
+  }, [location.pathname, ttsEnabled]);
+
+  const resetAll = () => {
+    window.speechSynthesis?.cancel();
+    resetAccessibility();
+    setLineHeight('normal');
+    setTextSpacing(false);
+    setHighlightLinks(false);
+    setLargeCursor(false);
+    setDarkMode(false);
+    setInvertColors(false);
+    setTtsEnabled(false);
+  };
+
+  const cards = [
+    { label: t('Text to Speech', 'टेक्स्ट टू स्पीच'), icon: Volume2, active: ttsEnabled, onClick: () => setTtsEnabled(value => !value) },
+    { label: t('Increase Text Size', 'टेक्स्ट आकार बढ़ाएं'), icon: ZoomIn, onClick: increaseFontSize },
+    { label: t('Decrease Text Size', 'टेक्स्ट आकार घटाएं'), icon: ZoomOut, onClick: decreaseFontSize },
+    { label: t('Line Height', 'लाइन ऊंचाई'), icon: AlignVerticalSpaceAround, active: lineHeight !== 'normal', onClick: () => setLineHeight(value => value === 'normal' ? 'relaxed' : value === 'relaxed' ? 'loose' : 'normal') },
+    { label: t('Highlight Links', 'लिंक हाइलाइट करें'), icon: Link2, active: highlightLinks, onClick: () => setHighlightLinks(value => !value) },
+    { label: t('Text Spacing', 'टेक्स्ट स्पेसिंग'), icon: TextCursorInput, active: textSpacing, onClick: () => setTextSpacing(value => !value) },
+    { label: t('Cursor Settings', 'कर्सर सेटिंग्स'), icon: MousePointer2, active: largeCursor, onClick: () => setLargeCursor(value => !value) },
+    { label: t('Light/Dark Mode', 'लाइट/डार्क मोड'), icon: SunMoon, active: darkMode, onClick: () => setDarkMode(value => !value) },
+    { label: t('Invert Colors', 'रंग उलटें'), icon: Contrast, active: invertColors, onClick: () => setInvertColors(value => !value) },
+  ];
+
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('Accessibility & Display Options', 'अभिगम्यता और प्रदर्शन विकल्प')}
-    >
-      <div className="bg-white text-slate-900 rounded-xl shadow-2xl border border-slate-200 max-w-sm w-full p-5 space-y-5">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-xl" role="img" aria-label="Accessibility">♿</span>
-            <h2 className="text-base font-black tracking-tight text-gov-navy">
-              {t('Accessibility', 'अभिगम्यता')}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-900 p-1.5 rounded-lg hover:bg-slate-100 transition focus:outline-none focus:ring-2 focus:ring-gov-blue"
-            aria-label={t('Close panel', 'पैनल बंद करें')}
-          >
-            <X className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label={t('Accessibility Menu', 'अभिगम्यता मेनू')}>
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between bg-blue-600 px-6 py-4 text-white">
+          <h2 className="text-lg font-bold">{t('Accessibility Menu', 'अभिगम्यता मेनू')}</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white" aria-label={t('Close menu', 'मेनू बंद करें')}>
+            <X className="h-6 w-6" />
           </button>
         </div>
-
-        {/* 1. Text Size */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-            <Type className="w-3.5 h-3.5 text-gov-blue" />
-            <span>{t('Text Size', 'पाठ का आकार')}</span>
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => setFontSize('sm')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                fontSize === 'sm'
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-              aria-label="A- Small Text Size"
-            >
-              A-
+        <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map(({ label, icon: Icon, active, onClick }) => (
+            <button key={label} onClick={onClick} aria-pressed={active} aria-label={`${label}${active ? ' - On' : ' - Off'}`} className={`flex min-h-28 flex-col items-center justify-center gap-3 rounded-xl border p-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${active ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white'}`}>
+              <Icon className="h-8 w-8 text-black" strokeWidth={1.8} aria-hidden="true" />
+              <span className="text-sm font-bold text-slate-900">{label}</span>
             </button>
-            <button
-              onClick={() => setFontSize('md')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                fontSize === 'md'
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-              aria-label="A Default Text Size"
-            >
-              A
-            </button>
-            <button
-              onClick={() => setFontSize('lg')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                fontSize === 'lg'
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-              aria-label="A+ Large Text Size"
-            >
-              A+
-            </button>
-          </div>
+          ))}
         </div>
-
-        {/* 2. Contrast */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-            <Eye className="w-3.5 h-3.5 text-gov-blue" />
-            <span>{t('Contrast', 'कंट्रास्ट')}</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setHighContrast(false)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                !highContrast
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              Normal
-            </button>
-            <button
-              onClick={() => setHighContrast(true)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                highContrast
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              High Contrast
-            </button>
-          </div>
-        </div>
-
-        {/* 3. Motion */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-            <Activity className="w-3.5 h-3.5 text-gov-blue" />
-            <span>{t('Motion', 'एनीमेशन / गति')}</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setReduceMotion(false)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                !reduceMotion
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              Normal
-            </button>
-            <button
-              onClick={() => setReduceMotion(true)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                reduceMotion
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              Reduce Motion
-            </button>
-          </div>
-        </div>
-
-        {/* 4. Grayscale */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-            <Sliders className="w-3.5 h-3.5 text-gov-blue" />
-            <span>{t('Grayscale', 'ग्रेस्केल')}</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setGrayscale(false)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                !grayscale
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              Off
-            </button>
-            <button
-              onClick={() => setGrayscale(true)}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                grayscale
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              On
-            </button>
-          </div>
-        </div>
-
-        {/* 5. Keyboard Navigation Status Indicator */}
-        <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-          <div className="flex items-center space-x-2">
-            <Keyboard className="w-4 h-4 text-gov-blue" />
-            <span className="font-bold text-slate-700">{t('Keyboard Navigation', 'कीबोर्ड नेविगेशन')}</span>
-          </div>
-          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[11px] rounded border border-emerald-300">
-            On
-          </span>
-        </div>
-
-        {/* 6. Language */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-            <Globe className="w-3.5 h-3.5 text-gov-blue" />
-            <span>{t('Language', 'भाषा')}</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setLanguage('en')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                language === 'en'
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setLanguage('hi')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition ${
-                language === 'hi'
-                  ? 'bg-gov-navy text-white border-gov-navy shadow-xs'
-                  : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              हिंदी
-            </button>
-          </div>
-        </div>
-
-        {/* Footer actions */}
-        <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
-          <button
-            onClick={resetAccessibility}
-            className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center space-x-1 py-1.5 px-2 rounded hover:bg-slate-100 transition"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Accessibility</span>
-          </button>
-          <button
-            onClick={onClose}
-            className="py-1.5 px-4 text-xs font-bold bg-gov-navy text-white rounded-lg hover:bg-gov-navy-dark transition shadow-xs"
-          >
-            {t('Done', 'संपन्न')}
+        <div className="px-5 pb-5">
+          <button onClick={resetAll} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+            <RefreshCcw className="h-4 w-4" aria-hidden="true" />
+            {t('Reset All Settings', 'सभी सेटिंग्स रीसेट करें')}
           </button>
         </div>
       </div>

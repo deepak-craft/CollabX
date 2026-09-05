@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { UserCheck, Phone, Mail, Lock, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Phone, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
+import { OtpInput } from './OtpInput';
 
 export const CitizenLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,25 +16,49 @@ export const CitizenLoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Numbers only, maximum 10 digits
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setMobileNumber(digitsOnly);
+    if (error) setError('');
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Standard email characters: letters, numbers, @, ., _, -
+    const sanitized = e.target.value.replace(/[^a-zA-Z0-9@._-]/g, '');
+    setEmail(sanitized);
+    if (error) setError('');
+  };
+
   const validateInputs = (): boolean => {
     setError('');
 
-    if (authMode === 'mobile') {
-      const cleanMobile = mobileNumber.replace(/\D/g, '');
-      if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
-        setError('Please enter a valid 10-digit Indian mobile number starting with 6-9.');
-        return false;
+    if (!otpSent) {
+      if (authMode === 'mobile') {
+        if (!mobileNumber) {
+          setError('Please enter your 10-digit mobile number.');
+          return false;
+        }
+        if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
+          setError('Please enter a valid 10-digit Indian mobile number.');
+          return false;
+        }
+      } else {
+        if (!email) {
+          setError('Please enter your email address.');
+          return false;
+        }
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+          setError('Please enter a valid email address.');
+          return false;
+        }
       }
     } else {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setError('Please enter a valid email address.');
+      if (otp.length !== 6) {
+        setError('Please enter the complete 6-digit OTP.');
         return false;
       }
-    }
-
-    if (otpSent && (!otp || otp.length < 4)) {
-      setError('Please enter the 4-digit OTP sent to your device.');
-      return false;
     }
 
     return true;
@@ -47,10 +72,11 @@ export const CitizenLoginPage: React.FC = () => {
     setTimeout(() => {
       setIsSubmitting(false);
       setOtpSent(true);
-    }, 600);
+      setOtp('');
+    }, 500);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
 
@@ -58,145 +84,181 @@ export const CitizenLoginPage: React.FC = () => {
     setTimeout(() => {
       loginAs('citizen', 'Citizen');
       navigate('/citizen');
-    }, 600);
+    }, 500);
+  };
+
+  const handleEditContact = () => {
+    setOtpSent(false);
+    setOtp('');
+    setError('');
   };
 
   return (
-    <div className="py-6 px-4 sm:px-6 lg:px-8 flex flex-col justify-center max-w-md mx-auto w-full">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md space-y-3 text-center">
-        {/* Emblem */}
-        <div className="w-14 h-14 mx-auto rounded-full bg-gov-navy flex items-center justify-center text-white border-2 border-gov-saffron shadow-md">
-          <UserCheck className="w-8 h-8 text-gov-saffron-amber" />
-        </div>
-
-        <span className="inline-block px-3 py-1 bg-gov-blue-50 text-gov-blue border border-gov-border rounded-full text-xs font-bold uppercase tracking-wider">
-          Jharkhand Citizen Service Access
-        </span>
-
-        <h2 className="text-2xl font-black text-gov-navy tracking-tight">
-          Citizen Login / नागरिक लॉगिन
-        </h2>
-        <p className="text-xs text-slate-500 max-w-xs mx-auto">
-          Report civic issues, track progress, and evaluate completed infrastructure pilots.
-        </p>
+    <div className="py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-center max-w-md mx-auto w-full">
+      {/* Clean Portal Header */}
+      <div className="text-center space-y-2 mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Citizen Login
+        </h1>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-gov rounded-lg border border-gov-border space-y-6">
-          {/* Tab Selector: Mobile vs Email */}
-          <div className="flex bg-slate-100 p-1 rounded-md text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('mobile');
-                setError('');
-              }}
-              className={`flex-1 py-2 text-center rounded transition ${
-                authMode === 'mobile' ? 'bg-gov-navy text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Phone className="w-3.5 h-3.5 inline mr-1" />
-              Mobile Number & OTP
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('email');
-                setError('');
-              }}
-              className={`flex-1 py-2 text-center rounded transition ${
-                authMode === 'email' ? 'bg-gov-navy text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Mail className="w-3.5 h-3.5 inline mr-1" />
-              Email & OTP
-            </button>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
+      {/* Main Authentication Card */}
+      <div className="bg-white p-6 sm:p-8 shadow-sm rounded-xl border border-slate-200 space-y-6">
+        {!otpSent ? (
+          <>
+            {/* Tab Selector: Mobile vs Email */}
+            <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('mobile');
+                  setError('');
+                }}
+                className={`flex-1 py-2 text-center rounded-md transition ${
+                  authMode === 'mobile'
+                    ? 'bg-white text-gov-navy shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5 inline mr-1.5" />
+                Mobile Number
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('email');
+                  setError('');
+                }}
+                className={`flex-1 py-2 text-center rounded-md transition ${
+                  authMode === 'email'
+                    ? 'bg-white text-gov-navy shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5 inline mr-1.5" />
+                Email
+              </button>
             </div>
-          )}
 
-          <form onSubmit={otpSent ? handleLogin : handleSendOtp} className="space-y-4">
-            {authMode === 'mobile' ? (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Indian Mobile Number / मोबाइल नंबर *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono font-bold">+91</span>
-                  <input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={mobileNumber}
-                    onChange={e => setMobileNumber(e.target.value)}
-                    disabled={otpSent}
-                    className="w-full pl-12 pr-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-gov-blue focus:border-gov-blue font-mono"
-                  />
-                </div>
-                <span className="text-[10px] text-slate-400">Example: 9876543210 (10 digits starting 6-9)</span>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Email Address / ईमेल पता *
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="email"
-                    placeholder="sunita.devi@gmail.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    disabled={otpSent}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-gov-blue focus:border-gov-blue"
-                  />
-                </div>
+            {error && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-700 flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            {otpSent && (
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Verification OTP *
+            <form onSubmit={handleSendOtp} className="space-y-5">
+              {authMode === 'mobile' ? (
+                <div>
+                  <label htmlFor="mobile-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mobile Number
                   </label>
-                  <span className="text-[10px] text-emerald-600 font-bold flex items-center">
-                    <CheckCircle2 className="w-3 h-3 mr-0.5" /> OTP Sent (Code: 1234)
-                  </span>
+                  <div className="relative flex rounded-md shadow-xs">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 bg-slate-50 text-slate-600 text-xs font-mono font-medium">
+                      +91
+                    </span>
+                    <input
+                      id="mobile-input"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
+                      placeholder="9876543210"
+                      value={mobileNumber}
+                      onChange={handleMobileChange}
+                      required
+                      className="flex-1 min-w-0 block w-full px-3 py-2 text-sm border border-slate-300 rounded-r-md focus:ring-2 focus:ring-gov-blue focus:border-gov-blue font-mono"
+                    />
+                  </div>
                 </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="1234"
-                    value={otp}
-                    onChange={e => setOtp(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-gov-blue focus:border-gov-blue font-mono tracking-widest"
-                  />
+              ) : (
+                <div>
+                  <label htmlFor="email-input" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative rounded-md shadow-xs">
+                    <input
+                      id="email-input"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={handleEmailChange}
+                      required
+                      className="block w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-gov-blue focus:border-gov-blue"
+                    />
+                  </div>
                 </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 px-4 rounded-md shadow-xs text-xs font-bold text-white bg-gov-navy hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-blue transition disabled:opacity-50"
+              >
+                {isSubmitting ? 'Sending OTP...' : 'Send OTP'}
+              </button>
+            </form>
+          </>
+        ) : (
+          /* OTP Screen */
+          <div className="space-y-5">
+            <div className="text-center space-y-1">
+              <p className="text-xs font-medium text-slate-700">
+                {authMode === 'mobile'
+                  ? 'OTP sent to your registered mobile number.'
+                  : 'OTP sent to your registered email address.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleEditContact}
+                className="text-[11px] font-semibold text-gov-blue hover:underline"
+              >
+                Change {authMode === 'mobile' ? 'Mobile Number' : 'Email'}
+              </button>
+            </div>
+
+            {error && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-700 flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-4 border border-transparent rounded-md shadow-sm text-xs font-bold text-white bg-gov-navy hover:bg-gov-navy-dark focus:outline-none transition flex items-center justify-center space-x-2"
-            >
-              <span>{isSubmitting ? 'Verifying...' : otpSent ? 'Login to Citizen Portal →' : 'Send Verification OTP →'}</span>
-            </button>
-          </form>
+            <form onSubmit={handleVerifyOtp} className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 text-center mb-2">
+                  Enter 6-Digit OTP
+                </label>
+                <OtpInput
+                  value={otp}
+                  onChange={(val) => {
+                    setOtp(val);
+                    if (error) setError('');
+                  }}
+                  length={6}
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          {/* Back link */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end text-xs">
-            <Link to="/" className="text-slate-500 hover:text-slate-800 text-[11px]">
-              ← Back to Portal Home
-            </Link>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-2.5 px-4 rounded-md shadow-xs text-xs font-bold text-white bg-gov-navy hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-blue transition disabled:opacity-50"
+              >
+                {isSubmitting ? 'Verifying...' : 'Verify OTP'}
+              </button>
+            </form>
           </div>
+        )}
+
+        {/* Clear, subtle back link */}
+        <div className="pt-4 border-t border-slate-100 text-center">
+          <Link
+            to="/"
+            className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Home
+          </Link>
         </div>
       </div>
     </div>

@@ -112,7 +112,7 @@ export const ProfessorMentorView: React.FC = () => {
 
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-gov-blue">
-                      AI Score: {idea.aiScores.compositeScore}/100
+                      Technical Feasibility Evaluation: {idea.aiScores.compositeScore}/100
                     </span>
 
                     <button

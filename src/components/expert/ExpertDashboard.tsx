@@ -4,17 +4,12 @@ import { useAccessibility } from '../../context/AccessibilityContext';
 import { storageService } from '../../services/storageService';
 import { Challenge } from '../../types';
 import { IdeaComparisonMatrix } from './IdeaComparisonMatrix';
-import { LinkCollab } from '../community/LinkCollab';
 import { 
   Shield, 
   Layers, 
   BarChart3, 
   CheckCircle2, 
-  Clock, 
-  FileText, 
-  MessageSquare,
-  Award,
-  AlertCircle
+  FileText
 } from 'lucide-react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -27,21 +22,20 @@ export const ExpertDashboard: React.FC = () => {
 
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
 
-  const getTabFromPath = (): 'challenges' | 'compare' | 'audit' | 'link_collab' => {
+  const getTabFromPath = (): 'challenges' | 'compare' | 'audit' => {
     if (location.pathname.endsWith('/reviews')) return 'challenges';
     if (location.pathname.endsWith('/compare')) return 'compare';
     if (location.pathname.endsWith('/decisions')) return 'audit';
-    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
     return 'compare';
   };
 
-  const [activeTab, setActiveTab] = useState<'challenges' | 'compare' | 'audit' | 'link_collab'>(getTabFromPath());
+  const [activeTab, setActiveTab] = useState<'challenges' | 'compare' | 'audit'>(getTabFromPath());
 
   React.useEffect(() => {
     setActiveTab(getTabFromPath());
   }, [location.pathname]);
 
-  const handleTabChange = (tab: 'challenges' | 'compare' | 'audit' | 'link_collab', path: string) => {
+  const handleTabChange = (tab: 'challenges' | 'compare' | 'audit', path: string) => {
     setActiveTab(tab);
     navigate(path);
   };
@@ -119,18 +113,6 @@ export const ExpertDashboard: React.FC = () => {
         >
           <FileText className="w-4 h-4" />
           <span>{t('Decision Audit Log', 'निर्णय ऑडिट लॉग')}</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('link_collab', '/expert/link-collab')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
-            activeTab === 'link_collab'
-              ? 'bg-purple-800 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span>{t('Link Collab Advisory', 'लिंक कोलैब संवाद')}</span>
         </button>
       </div>
 
@@ -228,11 +210,6 @@ export const ExpertDashboard: React.FC = () => {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Tab 4: Link Collab */}
-      {activeTab === 'link_collab' && (
-        <LinkCollab />
       )}
     </div>
   );

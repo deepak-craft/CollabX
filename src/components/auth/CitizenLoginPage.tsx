@@ -300,13 +300,25 @@ export const CitizenLoginPage: React.FC = () => {
           </div>
         )}
 
+        {/* Registration Prompt */}
+        <div className="pt-2 text-center text-xs text-slate-600">
+          New to CollabX?{' '}
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="font-bold text-gov-blue hover:underline focus:outline-none"
+          >
+            Register
+          </button>
+        </div>
+
         {/* Clear, subtle back link */}
         <div className="pt-4 border-t border-slate-100 text-center">
           <Link
-            to="/"
+            to="/login"
             className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition"
           >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Home
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to account type
           </Link>
         </div>
       </div>

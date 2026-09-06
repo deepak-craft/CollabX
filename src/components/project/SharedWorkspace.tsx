@@ -76,77 +76,77 @@ export const SharedWorkspace: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Workspace Header */}
-      <div className="bg-white rounded-lg border-2 border-slate-300 shadow-gov p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="bg-white rounded-md border border-slate-200 p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-mono text-xs font-bold bg-gov-blue text-white px-2 py-0.5 rounded">
+              <span className="font-mono text-xs font-bold bg-gov-navy text-white px-2 py-0.5 rounded">
                 {project.id}
               </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                Phase: Active Pilot Deployment
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold">
+                Phase: Active Field Pilot
               </span>
             </div>
-            <h2 className="text-xl font-bold text-gov-navy mt-1">{project.title}</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-lg sm:text-xl font-bold text-gov-navy mt-1">{project.title}</h2>
+            <p className="text-xs text-slate-600">
               Harmu Bypass Section #4, Ranchi Municipal Ward 14
             </p>
           </div>
 
           <div className="flex items-center space-x-2 text-xs">
-            <span className="px-3 py-1 bg-slate-100 rounded border font-medium text-slate-700">
-              Industry Support: <span className="font-bold text-emerald-700">{project.industrySupportStatus}</span>
+            <span className="px-3 py-1 bg-slate-50 rounded border border-slate-200 font-medium text-slate-700">
+              Industry Support: <span className="font-bold text-emerald-800">{project.industrySupportStatus}</span>
             </span>
           </div>
         </div>
 
         {/* Tri-Partite Stakeholder Badges */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-3 bg-blue-50/60 rounded border border-blue-200">
-            <span className="text-[10px] uppercase font-bold text-gov-blue">University Innovator</span>
+          <div className="p-3 bg-slate-50 rounded border border-slate-200">
+            <span className="text-[10px] uppercase font-bold text-gov-navy">University Partner</span>
             <div className="font-bold text-slate-900 mt-0.5">{project.teamName}</div>
             <div className="text-[11px] text-slate-600">{project.university}</div>
           </div>
 
-          <div className="p-3 bg-amber-50/60 rounded border border-amber-200">
-            <span className="text-[10px] uppercase font-bold text-gov-saffron">Industry Sponsor</span>
+          <div className="p-3 bg-slate-50 rounded border border-slate-200">
+            <span className="text-[10px] uppercase font-bold text-gov-navy">Industry Sponsor</span>
             <div className="font-bold text-slate-900 mt-0.5">{project.industryPartnerName}</div>
-            <div className="text-[11px] text-slate-600">Sensors & Hardware Material Allocation</div>
+            <div className="text-[11px] text-slate-600">Sensors & Equipment Support</div>
           </div>
 
-          <div className="p-3 bg-emerald-50/60 rounded border border-emerald-200">
-            <span className="text-[10px] uppercase font-bold text-gov-green">Govt Nodal Authority</span>
+          <div className="p-3 bg-slate-50 rounded border border-slate-200">
+            <span className="text-[10px] uppercase font-bold text-gov-navy">Govt Nodal Officer</span>
             <div className="font-bold text-slate-900 mt-0.5">{project.nodalOfficerName}</div>
-            <div className="text-[11px] text-slate-600">Ranchi Municipal Corporation Liaison</div>
+            <div className="text-[11px] text-slate-600">Ranchi Municipal Corporation</div>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1 flex flex-wrap gap-1">
+      <div className="bg-white rounded-md border border-slate-200 p-1 flex flex-wrap gap-1">
         <button
           onClick={() => setActiveSection('overview')}
-          className={`py-2 px-4 rounded text-xs font-bold transition ${
-            activeSection === 'overview' ? 'bg-gov-navy text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`py-2 px-4 rounded text-xs font-semibold transition ${
+            activeSection === 'overview' ? 'bg-gov-navy text-white' : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          Overview & Telemetry
+          Project Workspace Overview
         </button>
         <button
           onClick={() => setActiveSection('milestones')}
-          className={`py-2 px-4 rounded text-xs font-bold transition ${
-            activeSection === 'milestones' ? 'bg-gov-navy text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`py-2 px-4 rounded text-xs font-semibold transition ${
+            activeSection === 'milestones' ? 'bg-gov-navy text-white' : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
           Milestones ({project.milestones.filter(m => m.status === 'completed').length}/{project.milestones.length})
         </button>
         <button
           onClick={() => setActiveSection('tasks')}
-          className={`py-2 px-4 rounded text-xs font-bold transition ${
-            activeSection === 'tasks' ? 'bg-gov-navy text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`py-2 px-4 rounded text-xs font-semibold transition ${
+            activeSection === 'tasks' ? 'bg-gov-navy text-white' : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          Collaborative Tasks ({project.tasks.length})
+          Tasks ({project.tasks.length})
         </button>
         <button
           onClick={() => setActiveSection('testing')}

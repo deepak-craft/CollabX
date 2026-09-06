@@ -46,10 +46,10 @@ export const RestrictedAccessPage: React.FC = () => {
         </span>
 
         <h2 className="text-2xl font-black text-gov-navy tracking-tight">
-          Government & Expert Statutory Access
+          Government Official Login
         </h2>
-        <p className="text-xs text-slate-500 max-w-xs mx-auto">
-          Authorized portal for State Nodal Officers and Empanelled Technical Evaluation Experts.
+        <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 max-w-xs mx-auto">
+          Access restricted to authorized government personnel.
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export const RestrictedAccessPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start space-x-2">
+            <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start space-x-2">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -98,12 +98,13 @@ export const RestrictedAccessPage: React.FC = () => {
 
           <form onSubmit={handleVerifyAndLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="gov-service-id" className="block text-xs font-bold text-slate-700 mb-1">
                 {restrictedRole === 'government' ? 'Government Service ID / Employee Code *' : 'Empanelled Expert ID / National PIN *'}
               </label>
               <div className="relative">
                 <Key className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
+                  id="gov-service-id"
                   type="text"
                   placeholder={restrictedRole === 'government' ? 'JH-IAS-2014-882' : 'EXP-HYD-9912'}
                   value={govId}
@@ -114,12 +115,13 @@ export const RestrictedAccessPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="security-passcode" className="block text-xs font-bold text-slate-700 mb-1">
                 Security Token / Passcode *
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
+                  id="security-passcode"
                   type="password"
                   placeholder="••••••••"
                   value={passcode}
@@ -141,9 +143,9 @@ export const RestrictedAccessPage: React.FC = () => {
           </form>
 
           {/* Back link */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end text-xs">
-            <Link to="/" className="text-slate-500 hover:text-slate-800 text-[11px]">
-              ← Back to Portal Home
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-center text-xs">
+            <Link to="/login" className="text-slate-500 hover:text-slate-800 text-xs font-medium flex items-center">
+              ← Back to account type
             </Link>
           </div>
         </div>

@@ -1,26 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { storageService } from '../../services/storageService';
 import { Challenge, CollaborationOffer, IndustryPartner } from '../../types';
 import { OfferSupportModal } from './OfferSupportModal';
 import { SharedWorkspace } from '../project/SharedWorkspace';
-import { LinkCollab } from '../community/LinkCollab';
 import { 
   Building, 
   Briefcase, 
   Layers, 
-  CheckCircle2, 
-  Sparkles, 
-  Cpu, 
-  MapPin, 
-  Clock, 
-  ArrowRight,
-  MessageSquare,
-  Award,
-  ShieldCheck,
-  Check,
-  X as XIcon
+  User,
+  Search,
+  FileText
 } from 'lucide-react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -31,36 +22,43 @@ export const IndustryDashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const getTabFromPath = (): 'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab' => {
-    if (location.pathname.endsWith('/collaborations')) return 'collabs';
-    if (location.pathname.endsWith('/projects')) return 'workspace';
+  const getTabFromPath = () => {
+    if (location.pathname.endsWith('/opportunities')) return 'opportunities';
+    if (location.pathname.endsWith('/collaborations') || location.pathname.endsWith('/contributions')) return 'contributions';
+    if (location.pathname.endsWith('/projects')) return 'projects';
+    if (location.pathname.endsWith('/resources')) return 'resources';
     if (location.pathname.endsWith('/profile')) return 'profile';
-    if (location.pathname.endsWith('/link-collab')) return 'link_collab';
-    return 'opportunities';
+    return 'dashboard';
   };
 
-  const [activeTab, setActiveTab] = useState<'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab'>(getTabFromPath());
+  const [activeTab, setActiveTab] = useState<string>(getTabFromPath());
 
-  React.useEffect(() => {
+  useEffect(() => {
     setActiveTab(getTabFromPath());
   }, [location.pathname]);
 
-  const handleTabChange = (tab: 'opportunities' | 'collabs' | 'workspace' | 'profile' | 'link_collab', path: string) => {
+  const handleTabChange = (tab: string, path: string) => {
     setActiveTab(tab);
     navigate(path);
   };
+
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
   const [collaborations, setCollaborations] = useState<CollaborationOffer[]>(() => storageService.getCollaborations());
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState<boolean>(false);
   const partnerProfile: IndustryPartner = storageService.getIndustryPartners()[0];
 
+  const availableChallengesCount = challenges.length;
+  const myContributionsCount = collaborations.length;
+  const underReviewCount = collaborations.filter(c => c.status === 'offered').length;
+  const acceptedAllocatedCount = collaborations.filter(c => c.status === 'accepted').length;
+
   const handleOpenOfferModal = (challenge: Challenge) => {
     setSelectedChallenge(challenge);
     setIsOfferModalOpen(true);
   };
 
-  const handleOfferSubmitted = (offer: CollaborationOffer) => {
+  const handleOfferSubmitted = (_offer: CollaborationOffer) => {
     setCollaborations(storageService.getCollaborations());
   };
 
@@ -70,8 +68,7 @@ export const IndustryDashboard: React.FC = () => {
       target.status = 'accepted';
       storageService.saveCollaboration(target);
       setCollaborations([...storageService.getCollaborations()]);
-      alert('Collaboration accepted! Access granted to Shared Project Workspace.');
-      setActiveTab('workspace');
+      handleTabChange('projects', '/industry/projects');
     }
   };
 
@@ -86,261 +83,240 @@ export const IndustryDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white rounded-lg border border-gov-border shadow-gov p-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-lg bg-amber-50 border border-amber-200 text-gov-saffron flex items-center justify-center font-bold">
-            <Building className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
-                GovTech Corporate Partner
-              </span>
-              <span className="text-xs text-slate-400 font-mono">CSR ID: CSR-JH-2024</span>
+      {/* Official Portal Header */}
+      <div className="bg-white rounded-md border border-slate-200 p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded bg-slate-100 border border-slate-300 text-gov-navy flex items-center justify-center font-bold">
+              <Building className="w-5 h-5" />
             </div>
-            <h2 className="text-xl font-bold text-gov-navy mt-0.5">
-              {currentUser.organization}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {currentUser.name} • {currentUser.title}
-            </p>
+            <div>
+              <span className="text-[11px] font-bold text-gov-navy uppercase tracking-wider block">
+                Government of Jharkhand • Corporate & Industry Partnership Portal
+              </span>
+              <h1 className="text-xl sm:text-2xl font-bold text-gov-navy mt-0.5">
+                {t('Industry & Organisation Portal', 'उद्योग एवं संगठन पोर्टल')}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                {t('Support public challenges through technology, expertise, resources and implementation support.', 'तकनीक, विशेषज्ञता व संसाधनों द्वारा सार्वजनिक समस्याओं का समाधान करें।')}
+              </p>
+            </div>
           </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <div className="text-right text-xs">
-            <span className="text-slate-500 block">Active CSR Civic Budget:</span>
-            <span className="font-bold text-gov-navy font-mono text-sm">{partnerProfile.csrAllocation}</span>
+          <div className="text-right text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200">
+            <span className="font-semibold text-slate-900">{currentUser.organization || partnerProfile.companyName}</span>
+            <div className="text-[11px] text-slate-500 font-mono">CSR ID: CSR-JH-2024 • Active Allocation: {partnerProfile.csrAllocation}</div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg border border-gov-border shadow-gov p-1.5 flex flex-wrap gap-1">
+      {/* Navigation Bar */}
+      <nav className="bg-white rounded-md border border-slate-200 p-1 flex flex-wrap gap-1" aria-label="Industry Navigation">
         <button
-          onClick={() => handleTabChange('opportunities', '/industry/opportunities')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
-            activeTab === 'opportunities'
-              ? 'bg-gov-navy text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          onClick={() => handleTabChange('dashboard', '/industry')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'dashboard'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Sparkles className="w-4 h-4 text-gov-saffron-amber" />
-          <span>{t('Smart Opportunities (92% Match)', 'स्मार्ट अवसर')}</span>
+          <Building className="w-4 h-4" />
+          <span>{t('Dashboard', 'डैशबोर्ड')}</span>
         </button>
 
         <button
-          onClick={() => handleTabChange('collabs', '/industry/collaborations')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
-            activeTab === 'collabs'
-              ? 'bg-gov-navy text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          onClick={() => handleTabChange('opportunities', '/industry/opportunities')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'opportunities'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Search className="w-4 h-4" />
+          <span>{t('Browse Challenges', 'चुनौतियां खोजें')}</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('contributions', '/industry/collaborations')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'contributions'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>{t('My Contributions', 'मेरे योगदान')}</span>
+          {collaborations.length > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.2 bg-slate-200 text-slate-800 rounded-full text-[10px] font-bold">
+              {collaborations.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => handleTabChange('resources', '/industry/resources')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'resources'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
           <Briefcase className="w-4 h-4" />
-          <span>{t('Collaboration Requests', 'सहयोग अनुरोध')}</span>
-          <span className="ml-1 px-1.5 py-0.2 bg-gov-saffron text-white rounded-full text-[10px]">
-            {collaborations.length}
-          </span>
+          <span>{t('Resources & Expertise', 'संसाधन एवं क्षमता')}</span>
         </button>
 
         <button
-          onClick={() => handleTabChange('workspace', '/industry/projects')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
-            activeTab === 'workspace'
-              ? 'bg-gov-navy text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          onClick={() => handleTabChange('projects', '/industry/projects')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'projects'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
           <Layers className="w-4 h-4" />
-          <span>{t('Shared Pilot Workspace', 'साझा पायलट कार्यक्षेत्र')}</span>
+          <span>{t('Collaboration', 'सहयोग कार्यक्षेत्र')}</span>
         </button>
 
         <button
           onClick={() => handleTabChange('profile', '/industry/profile')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
             activeTab === 'profile'
-              ? 'bg-gov-navy text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Building className="w-4 h-4" />
-          <span>{t('Industry Profile & Tech Stack', 'उद्योग प्रोफाइल')}</span>
+          <User className="w-4 h-4" />
+          <span>{t('Profile', 'प्रोफाइल')}</span>
         </button>
+      </nav>
 
-        <button
-          onClick={() => handleTabChange('link_collab', '/industry/link-collab')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-bold flex items-center space-x-2 transition ${
-            activeTab === 'link_collab'
-              ? 'bg-gov-navy text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span>{t('Link Collab Advisory', 'लिंक कोलैब संवाद')}</span>
-        </button>
-      </div>
+      {/* ==================================================== */}
+      {/* TAB 1: DASHBOARD                                    */}
+      {/* ==================================================== */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-md border border-slate-200">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Available Challenges', 'उपलब्ध चुनौतियां')}</div>
+              <div className="text-2xl font-bold text-gov-navy mt-1">{availableChallengesCount}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Requiring technology/CSR</div>
+            </div>
 
-      {/* Tab 1: Smart Opportunities with Match Percentage */}
-      {activeTab === 'opportunities' && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov">
-            <h3 className="text-base font-bold text-gov-navy">
-              AI-Curated GovTech Opportunities for {currentUser.organization}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Matched against your industrial capabilities: IoT Telemetry, Sensor Kits, Structural Alloys, and CSR Grants.
-            </p>
+            <div className="bg-white p-4 rounded-md border border-slate-200">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('My Contributions', 'प्रस्तुत योगदान')}</div>
+              <div className="text-2xl font-bold text-gov-navy mt-1">{myContributionsCount}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Submitted offers</div>
+            </div>
+
+            <div className="bg-white p-4 rounded-md border border-slate-200">
+              <div className="text-xs font-bold text-amber-700 uppercase tracking-wider">{t('Under Review', 'समीक्षा के अधीन')}</div>
+              <div className="text-2xl font-bold text-amber-800 mt-1">{underReviewCount}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Nodal officer evaluation</div>
+            </div>
+
+            <div className="bg-white p-4 rounded-md border border-slate-200">
+              <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">{t('Accepted / Allocated', 'स्वीकृत एवं आवंटित')}</div>
+              <div className="text-2xl font-bold text-emerald-800 mt-1">{acceptedAllocatedCount}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Allocated to live pilot</div>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {challenges.map((challenge, idx) => {
-              const matchScore = idx === 0 ? 92 : 78;
+          {/* Relevant Challenges Overview */}
+          <div className="bg-white rounded-md border border-slate-200 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-gov-navy">{t('Relevant Public Challenges', 'प्रासंगिक सार्वजनिक चुनौतियां')}</h2>
+                <p className="text-xs text-slate-600">State challenges seeking hardware, CSR grants, testing facilities, or technical mentorship.</p>
+              </div>
+              <button
+                onClick={() => handleTabChange('opportunities', '/industry/opportunities')}
+                className="text-xs font-semibold text-gov-navy hover:underline"
+              >
+                {t('View All Opportunities →', 'सभी देखें →')}
+              </button>
+            </div>
 
-              return (
-                <div
-                  key={challenge.id}
-                  className="bg-white rounded-lg border-2 border-slate-200 hover:border-gov-navy shadow-gov p-5 space-y-4 transition"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono text-xs font-bold bg-gov-blue-50 text-gov-blue px-2 py-0.5 rounded">
-                        {challenge.id}
-                      </span>
-                      <span className="text-xs text-slate-500 font-semibold">{challenge.domain}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      {/* Smart Match Pill */}
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center space-x-1 border border-emerald-300">
-                        <Sparkles className="w-3.5 h-3.5 text-gov-saffron" />
-                        <span>Compatibility: {matchScore}%</span>
-                      </span>
-
-                      <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-gov-blue font-bold">
-                        {challenge.supportStatus}
-                      </span>
-                    </div>
+            <div className="space-y-3">
+              {challenges.slice(0, 3).map((ch) => (
+                <div key={ch.id} className="bg-slate-50 border border-slate-200 p-4 rounded text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-gov-navy bg-white px-2 py-0.5 rounded border border-slate-200">{ch.id}</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 font-semibold">{ch.supportStatus}</span>
                   </div>
-
-                  <div>
-                    <h4 className="text-base font-bold text-gov-navy">{challenge.title}</h4>
-                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">{challenge.summary}</p>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200 text-xs space-y-1.5">
-                    <div className="font-bold text-slate-800">Support Needed by University Teams:</div>
-                    <div className="text-slate-600">
-                      • Hardware Sensors (IP68 Ultrasonic) & LoRaWAN Gateway<br />
-                      • Fluid testing flume facility for hydraulic sleeve inspection<br />
-                      • Mentorship from senior drainage engineers
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">
-                      Location: <span className="font-bold text-slate-700">{challenge.district}, Jharkhand</span>
-                    </span>
-
+                  <h3 className="font-bold text-slate-900 text-sm">{ch.title}</h3>
+                  <p className="text-slate-600">{ch.summary}</p>
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-500">District: <span className="font-semibold text-slate-700">{ch.district}</span></span>
                     <button
-                      onClick={() => handleOpenOfferModal(challenge)}
-                      className="px-4 py-2 bg-gov-navy hover:bg-gov-navy-dark text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
+                      onClick={() => handleOpenOfferModal(ch)}
+                      className="px-3 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-semibold transition"
                     >
-                      <Building className="w-3.5 h-3.5 text-gov-saffron-amber" />
-                      <span>Offer Corporate / Technical Support →</span>
+                      Offer Support →
                     </button>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Tab 2: Collaboration Requests */}
-      {activeTab === 'collabs' && (
+      {/* ==================================================== */}
+      {/* TAB 2: BROWSE CHALLENGES                            */}
+      {/* ==================================================== */}
+      {activeTab === 'opportunities' && (
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov">
-            <h3 className="text-base font-bold text-gov-navy">
-              University Collaboration Requests ({collaborations.length})
-            </h3>
-            <p className="text-xs text-slate-500">
-              Incoming partnerships from student engineering teams selected for government pilots.
+          <div className="bg-white p-4 rounded-md border border-slate-200">
+            <h2 className="text-base font-bold text-gov-navy">Available State Challenges Requiring Support</h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Review public problem statements and offer corporate hardware, equipment, lab testing, or CSR support.
             </p>
           </div>
 
           <div className="space-y-4">
-            {collaborations.map(collab => (
+            {challenges.map((challenge) => (
               <div
-                key={collab.id}
-                className="bg-white rounded-lg border-2 border-slate-200 shadow-gov p-5 space-y-4"
+                key={challenge.id}
+                className="bg-white rounded-md border border-slate-200 p-5 space-y-3"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
                   <div className="flex items-center space-x-2">
-                    <span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded">
-                      {collab.id}
+                    <span className="font-mono text-xs font-bold bg-slate-100 text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                      {challenge.id}
                     </span>
-                    <span className="text-xs font-bold text-gov-navy">Project: {collab.projectId}</span>
+                    <span className="text-xs text-slate-600 font-semibold">{challenge.domain}</span>
                   </div>
 
-                  <span
-                    className={`text-xs px-2.5 py-0.5 rounded font-bold ${
-                      collab.status === 'accepted'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    Status: {collab.status.toUpperCase()} ({collab.supportStatus})
+                  <span className="text-xs px-2.5 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 font-semibold">
+                    {challenge.supportStatus}
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-gov-navy">
-                    Harmu Bypass Smart Retention & Automated Siphon Pilot
-                  </h4>
-                  <div className="text-xs text-slate-500 font-medium">
-                    Requested by: <span className="font-bold text-slate-800">Team JalRakshak (BIT Mesra)</span>
+                <div>
+                  <h3 className="text-base font-bold text-gov-navy">{challenge.title}</h3>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">{challenge.summary}</p>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded border border-slate-200 text-xs space-y-1">
+                  <div className="font-bold text-slate-800">Support Required by Research Teams:</div>
+                  <div className="text-slate-600">
+                    • Hardware Sensors (IP68 Ultrasonic) & LoRaWAN Gateway<br />
+                    • Fluid testing flume facility for hydraulic sleeve inspection<br />
+                    • Mentorship from senior drainage engineers
                   </div>
-                  <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
-                    {collab.description}
-                  </p>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {collab.supportTypes.map(t => (
-                    <span key={t} className="px-2 py-0.5 rounded bg-blue-50 text-gov-blue border border-blue-100 text-[10px] font-semibold">
-                      ✓ {t}
-                    </span>
-                  ))}
-                </div>
+                <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                  <span className="text-slate-500">
+                    District: <span className="font-bold text-slate-700">{challenge.district}, Jharkhand</span>
+                  </span>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-end space-x-2">
-                  {collab.status === 'accepted' ? (
-                    <button
-                      onClick={() => setActiveTab('workspace')}
-                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center space-x-1"
-                    >
-                      <span>Open Shared Project Workspace →</span>
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleDeclineRequest(collab.id)}
-                        className="px-3 py-1.5 border border-slate-300 text-slate-600 rounded text-xs hover:bg-slate-100 flex items-center space-x-1"
-                      >
-                        <XIcon className="w-3.5 h-3.5" />
-                        <span>Decline</span>
-                      </button>
-                      <button
-                        onClick={() => handleAcceptRequest(collab.id)}
-                        className="px-4 py-1.5 bg-gov-navy hover:bg-gov-navy-dark text-white rounded text-xs font-bold flex items-center space-x-1"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Accept & Allocate Resources</span>
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => handleOpenOfferModal(challenge)}
+                    className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-semibold transition"
+                  >
+                    Offer Support →
+                  </button>
                 </div>
               </div>
             ))}
@@ -348,81 +324,169 @@ export const IndustryDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Shared Workspace */}
-      {activeTab === 'workspace' && (
-        <SharedWorkspace />
+      {/* ==================================================== */}
+      {/* TAB 3: MY CONTRIBUTIONS                             */}
+      {/* ==================================================== */}
+      {activeTab === 'contributions' && (
+        <div className="bg-white rounded-md border border-slate-200 p-6 space-y-4">
+          <div className="border-b border-slate-200 pb-3">
+            <h2 className="text-base font-bold text-gov-navy">Submitted Support Contributions ({collaborations.length})</h2>
+            <p className="text-xs text-slate-600">Track technical, equipment, and CSR resource allocations.</p>
+          </div>
+
+          {collaborations.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">
+              No contributions submitted yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
+                    <th className="p-2.5">Contribution ID</th>
+                    <th className="p-2.5">Target Challenge / Project</th>
+                    <th className="p-2.5">Resource Types Offered</th>
+                    <th className="p-2.5">Status</th>
+                    <th className="p-2.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {collaborations.map(collab => {
+                    let statusBadge = 'bg-amber-50 text-amber-900 border-amber-300';
+                    let statusText = 'Submitted';
+
+                    if (collab.status === 'accepted') {
+                      statusBadge = 'bg-emerald-50 text-emerald-900 border-emerald-300';
+                      statusText = 'Accepted & Allocated';
+                    } else if (collab.status === 'declined') {
+                      statusBadge = 'bg-red-50 text-red-900 border-red-300';
+                      statusText = 'Declined';
+                    }
+
+                    return (
+                      <tr key={collab.id} className="hover:bg-slate-50">
+                        <td className="p-2.5 font-mono font-bold text-gov-navy">{collab.id}</td>
+                        <td className="p-2.5">
+                          <span className="font-bold text-slate-900 block">Project: {collab.projectId}</span>
+                          <span className="text-slate-500 text-[11px]">Harmu Bypass Automated Siphon Pilot</span>
+                        </td>
+                        <td className="p-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {collab.supportTypes.map(st => (
+                              <span key={st} className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded text-[10px] border border-slate-200">
+                                {st}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${statusBadge}`}>
+                            {statusText}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-right">
+                          {collab.status === 'accepted' ? (
+                            <button
+                              onClick={() => handleTabChange('projects', '/industry/projects')}
+                              className="text-gov-navy font-semibold hover:underline"
+                            >
+                              Open Workspace
+                            </button>
+                          ) : (
+                            <div className="flex items-center justify-end space-x-1">
+                              <button
+                                onClick={() => handleDeclineRequest(collab.id)}
+                                className="px-2 py-1 border border-slate-300 rounded text-[11px] text-slate-600 hover:bg-slate-100"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                onClick={() => handleAcceptRequest(collab.id)}
+                                className="px-2.5 py-1 bg-gov-navy text-white rounded text-[11px] font-semibold hover:bg-slate-800"
+                              >
+                                Accept & Allocate
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Tab 4: Industry Profile & Smart Matching Inputs */}
-      {activeTab === 'profile' && (
-        <div className="bg-white rounded-lg border border-gov-border shadow-gov p-6 space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-gov-navy">
-              Industry GovTech Capability Profile & CSR Registry
-            </h3>
-            <p className="text-xs text-slate-500">
-              This institutional metadata feeds directly into our Smart Matching Algorithm to pair challenges with industrial facilities.
-            </p>
+      {/* ==================================================== */}
+      {/* TAB 4: RESOURCES & EXPERTISE                         */}
+      {/* ==================================================== */}
+      {activeTab === 'resources' && (
+        <div className="bg-white rounded-md border border-slate-200 p-6 space-y-5">
+          <div className="border-b border-slate-200 pb-3">
+            <h2 className="text-base font-bold text-gov-navy">Organisation Capability & Resource Registry</h2>
+            <p className="text-xs text-slate-600">Technical facilities, laboratory equipment, and dedicated CSR capacity.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
             <div className="space-y-3">
-              <div>
+              <div className="p-3 bg-slate-50 rounded border border-slate-200">
                 <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Company Name</span>
                 <div className="text-sm font-bold text-slate-900 mt-0.5">{partnerProfile.companyName}</div>
               </div>
 
-              <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Sector & Domain</span>
-                <div className="text-xs font-medium text-slate-800 mt-0.5">{partnerProfile.industryType}</div>
+              <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Industry Sector</span>
+                <div className="text-xs font-semibold text-slate-800 mt-0.5">{partnerProfile.industryType}</div>
               </div>
 
-              <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Operational Hub</span>
-                <div className="text-xs font-medium text-slate-800 mt-0.5">{partnerProfile.location}</div>
+              <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Operational Center</span>
+                <div className="text-xs font-semibold text-slate-800 mt-0.5">{partnerProfile.location}</div>
               </div>
 
-              <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Dedicated CSR Pool</span>
-                <div className="text-xs font-bold font-mono text-gov-green mt-0.5">{partnerProfile.csrAllocation}</div>
+              <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Annual Dedicated CSR Fund</span>
+                <div className="text-xs font-bold font-mono text-gov-navy mt-0.5">{partnerProfile.csrAllocation}</div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">
+              <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block">
                   Core Engineering Capabilities:
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {partnerProfile.capabilities.map(c => (
-                    <span key={c} className="px-2 py-0.5 rounded bg-blue-50 text-gov-blue border border-blue-200 text-[11px] font-medium">
+                    <span key={c} className="px-2 py-0.5 rounded bg-white text-slate-800 border border-slate-300 text-[11px] font-semibold">
                       {c}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">
-                  Technologies Offered to University Teams:
+              <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1">
+                <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block">
+                  Technical Equipment Offered:
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {partnerProfile.technologies.map(t => (
-                    <span key={t} className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-medium">
+                    <span key={t} className="px-2 py-0.5 rounded bg-white text-slate-800 border border-slate-300 text-[11px] font-semibold">
                       {t}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="pt-3 grid grid-cols-2 gap-3 text-center border-t border-slate-100">
+              <div className="grid grid-cols-2 gap-3 text-center pt-2">
                 <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                  <span className="text-slate-500 text-[10px] uppercase font-semibold">Projects Sponsored</span>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold">Projects Sponsored</span>
                   <div className="text-xl font-bold text-gov-navy mt-1">{partnerProfile.projectsSupported}</div>
                 </div>
                 <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                  <span className="text-slate-500 text-[10px] uppercase font-semibold">Pilots Completed</span>
-                  <div className="text-xl font-bold text-gov-green mt-1">{partnerProfile.pilotsCompleted}</div>
+                  <span className="text-slate-500 text-[10px] uppercase font-bold">Pilots Completed</span>
+                  <div className="text-xl font-bold text-emerald-800 mt-1">{partnerProfile.pilotsCompleted}</div>
                 </div>
               </div>
             </div>
@@ -430,9 +494,45 @@ export const IndustryDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 5: Link Collab */}
-      {activeTab === 'link_collab' && (
-        <LinkCollab />
+      {/* ==================================================== */}
+      {/* TAB 5: COLLABORATION WORKSPACE                       */}
+      {/* ==================================================== */}
+      {activeTab === 'projects' && (
+        <SharedWorkspace />
+      )}
+
+      {/* ==================================================== */}
+      {/* TAB 6: PROFILE                                      */}
+      {/* ==================================================== */}
+      {activeTab === 'profile' && (
+        <div className="bg-white rounded-md border border-slate-200 p-6 space-y-5">
+          <div className="border-b border-slate-200 pb-3">
+            <h2 className="text-base font-bold text-gov-navy">Organisation Profile Information</h2>
+            <p className="text-xs text-slate-600">Registered corporate account & nodal officer details.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs max-w-2xl">
+            <div className="p-3 bg-slate-50 rounded border border-slate-200">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Nodal Officer Name</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.name}</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Designation</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.title || 'Head of CSR & Public Infrastructure'}</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Organisation</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.organization || partnerProfile.companyName}</span>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded border border-slate-200">
+              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Official Email</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block font-mono">{currentUser.email || 'csr@tatasteel.com'}</span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Offer Support Modal */}

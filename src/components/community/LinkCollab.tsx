@@ -130,9 +130,9 @@ export const LinkCollab: React.FC = () => {
       <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center space-x-2">
-            <MessageSquare className="w-5 h-5 text-gov-blue" />
+            <Shield className="w-5 h-5 text-gov-blue" />
             <h2 className="text-lg font-bold text-gov-navy">
-              {t('LINK COLLAB — Knowledge & Advisory Community', 'लिंक कोलैब — ज्ञान एवं परामर्श समुदाय')}
+              {t('Advisory & Stakeholder Dialogue', 'सलाहकार एवं हितधारक संवाद')}
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">

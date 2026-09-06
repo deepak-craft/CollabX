@@ -5,17 +5,11 @@ import { IdeaSubmissionModal } from './IdeaSubmissionModal';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { 
   Target, 
-  MapPin, 
   Clock, 
   CheckCircle2, 
-  Lightbulb, 
-  ExternalLink, 
+  FileText, 
   Search, 
-  Filter, 
-  Sparkles,
-  Layers,
-  ChevronRight,
-  ShieldCheck
+  ChevronRight
 } from 'lucide-react';
 
 interface ChallengeExplorerProps {
@@ -59,31 +53,31 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
   const getSupportBadgeStyle = (status: string) => {
     switch (status) {
       case 'Confirmed Funding':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        return 'bg-emerald-50 text-emerald-900 border-emerald-300';
       case 'Support Available':
-        return 'bg-blue-100 text-gov-blue border-blue-300';
+        return 'bg-blue-50 text-blue-900 border-blue-300';
       case 'Not Allocated':
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-300';
+        return 'bg-slate-50 text-slate-700 border-slate-300';
     }
   };
 
   return (
     <div className="space-y-5">
       {/* Header & Filter Bar */}
-      <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov space-y-3">
+      <div className="bg-white p-4 sm:p-5 rounded-md border border-slate-200 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2">
-              <Target className="w-5 h-5 text-gov-saffron" />
-              <h2 className="text-lg font-bold text-gov-navy">
-                {t('Open GovTech Challenges (Statewide Challenge Pool)', 'खुली राज्यस्तरीय चुनौतियाँ')}
+              <Target className="w-5 h-5 text-gov-navy" />
+              <h2 className="text-base font-bold text-gov-navy">
+                {t('State Public Challenges Directory', 'राज्य स्तरीय सार्वजनिक चुनौतियां')}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-600 mt-0.5">
               {t(
-                'Verified civic problems converted into research & development challenges for university teams.',
-                'नागरिक समस्याओं से उत्पन्न सत्यापित चुनौतियां। विकास से पूर्व प्रस्ताव जमा करें।'
+                'Verified civic problem statements open for university research proposals and technical contributions.',
+                'विश्वविद्यालय शोध प्रस्तावों के लिए खुली नागरिक समस्याएं।'
               )}
             </p>
           </div>
@@ -95,19 +89,19 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
               placeholder={t('Search challenges...', 'चुनौतियाँ खोजें...')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded focus:border-gov-blue"
+              className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-gov-navy"
             />
           </div>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-3 py-1 text-xs rounded border transition ${
               activeFilter === 'all'
-                ? 'bg-gov-navy text-white border-gov-navy font-bold'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                ? 'bg-gov-navy text-white border-gov-navy font-semibold'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
           >
             {t('All Challenges', 'सभी चुनौतियाँ')}
@@ -116,8 +110,8 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
             onClick={() => setActiveFilter('ranchi')}
             className={`px-3 py-1 text-xs rounded border transition ${
               activeFilter === 'ranchi'
-                ? 'bg-gov-navy text-white border-gov-navy font-bold'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                ? 'bg-gov-navy text-white border-gov-navy font-semibold'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
           >
             Ranchi District
@@ -126,8 +120,8 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
             onClick={() => setActiveFilter('funding')}
             className={`px-3 py-1 text-xs rounded border transition ${
               activeFilter === 'funding'
-                ? 'bg-gov-navy text-white border-gov-navy font-bold'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                ? 'bg-gov-navy text-white border-gov-navy font-semibold'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
           >
             Confirmed Funding
@@ -136,8 +130,8 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
             onClick={() => setActiveFilter('support')}
             className={`px-3 py-1 text-xs rounded border transition ${
               activeFilter === 'support'
-                ? 'bg-gov-navy text-white border-gov-navy font-bold'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                ? 'bg-gov-navy text-white border-gov-navy font-semibold'
+                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
           >
             Support Available
@@ -150,22 +144,21 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
         {filteredChallenges.map(challenge => (
           <div
             key={challenge.id}
-            className="bg-white rounded-lg border-2 border-gov-border hover:border-slate-400 shadow-gov p-5 space-y-4 transition"
+            className="bg-white rounded-md border border-slate-200 p-5 space-y-4"
           >
             {/* Top Meta */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
               <div className="flex items-center space-x-2">
-                <span className="font-mono text-xs font-bold bg-gov-blue-50 text-gov-blue px-2.5 py-0.5 rounded border border-gov-border">
+                <span className="font-mono text-xs font-bold bg-slate-100 text-gov-navy px-2.5 py-0.5 rounded border border-slate-200">
                   {challenge.id}
                 </span>
-                <span className="text-xs text-slate-500 font-semibold">
-                  {challenge.domain}
+                <span className="text-xs font-semibold text-slate-600">
+                  Category: {challenge.domain}
                 </span>
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Support Status Tag */}
-                <span className={`text-xs px-2.5 py-0.5 rounded-full border font-bold ${getSupportBadgeStyle(challenge.supportStatus)}`}>
+                <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${getSupportBadgeStyle(challenge.supportStatus)}`}>
                   {challenge.supportStatus}
                 </span>
 
@@ -179,7 +172,7 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
             {/* Title & Summary */}
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-4">
-                <h3 className="text-base sm:text-lg font-bold text-gov-navy">
+                <h3 className="text-base font-bold text-gov-navy">
                   {challenge.title}
                 </h3>
                 <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono flex-shrink-0">
@@ -191,16 +184,16 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
               </p>
             </div>
 
-            {/* Expected Outcomes & Skills */}
+            {/* Expected Outcomes & Required Skills */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-50 rounded border border-slate-200 text-xs">
               <div>
                 <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider block mb-1">
-                  Key Deliverable Outcomes:
+                  Expected Technical Outcome:
                 </span>
                 <ul className="space-y-1 text-slate-600">
                   {challenge.expectedOutcomes.slice(0, 2).map((outcome, idx) => (
                     <li key={idx} className="flex items-start space-x-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-gov-green flex-shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 flex-shrink-0 mt-0.5" />
                       <span>{outcome}</span>
                     </li>
                   ))}
@@ -209,7 +202,7 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
 
               <div>
                 <span className="font-bold text-slate-800 uppercase text-[10px] tracking-wider block mb-1">
-                  Required Disciplines & Skills:
+                  Required Expertise Disciplines:
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {challenge.skillsRequired.map(s => (
@@ -223,33 +216,33 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
 
             {/* Pilot Opportunity */}
             <div className="text-xs text-slate-600 flex items-center space-x-2">
-              <span className="font-bold text-gov-navy">Pilot Opportunity:</span>
+              <span className="font-bold text-gov-navy">Field Testing Scope:</span>
               <span>{challenge.pilotOpportunity}</span>
             </div>
 
             {/* Actions Bar */}
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+            <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs text-slate-500 font-medium">
-                Proposals Submitted: <span className="font-bold text-gov-navy">{challenge.proposalsCount} University Teams</span>
+                Submitted Proposals: <span className="font-bold text-gov-navy">{challenge.proposalsCount} University Teams</span>
               </div>
 
               <div className="flex items-center space-x-2">
                 {challenge.selectedIdeaId && onSelectChallengeForProject && (
                   <button
                     onClick={() => onSelectChallengeForProject(challenge.id)}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center space-x-1"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-gov-navy rounded text-xs font-semibold flex items-center space-x-1 border border-slate-300"
                   >
-                    <span>View Shared Pilot Workspace</span>
+                    <span>View Project Workspace</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 )}
 
                 <button
                   onClick={() => handleOpenSubmit(challenge)}
-                  className="px-4 py-1.5 bg-gov-navy hover:bg-gov-navy-dark text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
+                  className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-semibold flex items-center space-x-1.5 transition"
                 >
-                  <Lightbulb className="w-3.5 h-3.5 text-gov-saffron-amber" />
-                  <span>{t('Submit Idea-First Proposal', 'प्रस्ताव जमा करें')}</span>
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{t('Submit Proposal', 'प्रस्ताव जमा करें')}</span>
                 </button>
               </div>
             </div>
@@ -257,7 +250,7 @@ export const ChallengeExplorer: React.FC<ChallengeExplorerProps> = ({
         ))}
       </div>
 
-      {/* Idea Submission Modal */}
+      {/* Proposal Submission Modal */}
       {selectedChallenge && (
         <IdeaSubmissionModal
           challenge={selectedChallenge}

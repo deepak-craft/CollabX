@@ -17,7 +17,10 @@ import {
   GraduationCap, 
   Briefcase, 
   CheckCircle2,
-  Home
+  Home,
+  Menu,
+  X,
+  LogIn
 } from 'lucide-react';
 
 interface GovHeaderProps {
@@ -37,12 +40,30 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState<boolean>(false);
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isSwitchPortalOpen, setIsSwitchPortalOpen] = useState<boolean>(false);
   const [notifications, setNotifications] = useState(() => storageService.getNotifications());
   const [searchTerm, setSearchTerm] = useState('');
 
   const isPublicAuthRoute = 
     location.pathname === '/' || 
-    location.pathname.startsWith('/login');
+    location.pathname.startsWith('/login') ||
+    location.pathname === '/services' ||
+    location.pathname === '/report' ||
+    location.pathname === '/track' ||
+    location.pathname.startsWith('/challenges') ||
+    location.pathname === '/about' ||
+    location.pathname === '/help';
+
+  const publicNavLinks = [
+    { label: t('Home', 'मुख्य पृष्ठ'), path: '/' },
+    { label: t('Services', 'सेवाएँ'), path: '/services' },
+    { label: t('Report a Problem', 'समस्या रिपोर्ट करें'), path: '/report' },
+    { label: t('Track Report', 'रिपोर्ट देखें'), path: '/track' },
+    { label: t('Challenges', 'चुनौतियाँ'), path: '/challenges' },
+    { label: t('About', 'परिचय'), path: '/about' },
+    { label: t('Help', 'सहायता'), path: '/help' },
+  ];
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -189,6 +210,17 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
             <span>{language === 'en' ? '🌐 हिंदी' : '🌐 English'}</span>
           </button>
 
+          {/* Public Mobile Menu Toggle Button */}
+          {isPublicAuthRoute && (
+            <button
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className="md:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-md transition focus:ring-2 focus:ring-gov-blue"
+              aria-label="Toggle Mobile Navigation Menu"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          )}
+
           {/* Authenticated Only Tools: Notifications & Profile Switcher */}
           {!isPublicAuthRoute && (
             <>
@@ -307,81 +339,147 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
         </div>
       </div>
 
-      {/* Primary Portal Navigation Bar (AUTHENTICATED ONLY - HIDDEN ON PUBLIC LOGIN PAGE) */}
+      {/* Public Navigation Bar */}
+      {isPublicAuthRoute && (
+        <div className="bg-slate-100 border-t border-gov-border px-4 sm:px-8 py-2">
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center justify-between text-xs font-bold">
+            <nav className="flex items-center space-x-1" aria-label="Public Main Navigation">
+              {publicNavLinks.map(link => {
+                const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
+                return (
+                  <button
+                    key={link.path}
+                    onClick={() => navigate(link.path)}
+                    className={`px-3 py-1.5 rounded transition ${
+                      isActive
+                        ? 'bg-gov-navy text-white shadow-xs font-bold'
+                        : 'text-slate-700 hover:bg-slate-200 hover:text-gov-navy'
+                    }`}
+                  >
+                    {link.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <button
+              onClick={() => navigate('/login')}
+              className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold flex items-center space-x-1.5 shadow-xs transition focus:ring-2 focus:ring-gov-blue"
+            >
+              <LogIn className="w-3.5 h-3.5 text-gov-saffron-amber" />
+              <span>{t('Login', 'लॉगिन')}</span>
+            </button>
+          </div>
+
+          {/* Mobile Collapsible Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden py-3 space-y-2 border-t border-slate-200">
+              <nav className="flex flex-col space-y-1 text-xs font-bold" aria-label="Mobile Navigation">
+                {publicNavLinks.map(link => {
+                  const isActive = location.pathname === link.path || (link.path !== '/' && location.pathname.startsWith(link.path));
+                  return (
+                    <button
+                      key={link.path}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        navigate(link.path);
+                      }}
+                      className={`text-left px-3 py-2 rounded transition ${
+                        isActive
+                          ? 'bg-gov-navy text-white font-bold'
+                          : 'text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {link.label}
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="pt-2 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    navigate('/login');
+                  }}
+                  className="w-full text-center px-4 py-2 bg-gov-navy text-white text-xs font-bold rounded flex items-center justify-center space-x-2"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                  <span>{t('Login to Portal', 'पोर्टल पर लॉगिन करें')}</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Primary Portal Navigation Bar (AUTHENTICATED ONLY) */}
       {!isPublicAuthRoute && (
-        <div className="bg-slate-100 border-t border-gov-border px-4 sm:px-8 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5 font-bold">
-            <button
-              onClick={() => navigate('/')}
-              className={`px-3 py-1.5 rounded border flex items-center space-x-1 shadow-xs transition ${
-                location.pathname === '/' || location.pathname.startsWith('/login')
-                  ? 'bg-gov-navy text-white font-bold border-gov-navy'
-                  : 'bg-white hover:bg-slate-200 text-slate-800 border-slate-300'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5 text-gov-saffron" />
-              <span>Portal Main</span>
-            </button>
+        <div className="bg-slate-100 border-t border-gov-border px-4 sm:px-8 py-2 flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center space-x-2">
+            <span className="text-slate-600 font-bold uppercase tracking-wider text-[11px]">Active Portal:</span>
+            <div className="relative">
+              <button
+                onClick={() => setIsSwitchPortalOpen(prev => !prev)}
+                className="px-3 py-1.5 bg-gov-navy text-white rounded font-bold text-xs flex items-center space-x-2 shadow-xs hover:bg-slate-800 transition"
+              >
+                <span>
+                  {location.pathname.startsWith('/citizen') ? 'Citizen Portal' :
+                   location.pathname.startsWith('/university') ? 'University Portal' :
+                   location.pathname.startsWith('/industry') ? 'Industry Portal' :
+                   location.pathname.startsWith('/government') ? 'Government Portal' :
+                   location.pathname.startsWith('/expert') ? 'Domain Expert Portal' : 'CollabX Main'}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-gov-saffron" />
+              </button>
 
-            <button
-              onClick={() => handleNavigatePortal('citizen')}
-              className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-                location.pathname.startsWith('/citizen')
-                  ? 'bg-gov-navy text-white shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5 text-slate-600" />
-              <span>Citizen Portal</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigatePortal('student')}
-              className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-                location.pathname.startsWith('/university')
-                  ? 'bg-gov-navy text-white shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-              <span>University Portal</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigatePortal('industry')}
-              className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-                location.pathname.startsWith('/industry')
-                  ? 'bg-gov-navy text-white shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Industry Portal</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigatePortal('government')}
-              className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-                location.pathname.startsWith('/government')
-                  ? 'bg-gov-navy text-white shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5 text-amber-600" />
-              <span>Govt Portal</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigatePortal('expert')}
-              className={`px-3 py-1.5 rounded flex items-center space-x-1.5 transition ${
-                location.pathname.startsWith('/expert')
-                  ? 'bg-purple-800 text-white shadow-sm'
-                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-600" />
-              <span>Domain Expert</span>
-            </button>
+              {isSwitchPortalOpen && (
+                <div className="absolute left-0 mt-1 w-56 bg-white border border-slate-300 rounded shadow-md z-50 py-1 font-semibold">
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); navigate('/'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <Home className="w-3.5 h-3.5 text-gov-saffron" />
+                    <span>Portal Home</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('citizen'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Citizen Portal</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('student'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+                    <span>University Portal</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('industry'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Industry Portal</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('government'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Government Portal</span>
+                  </button>
+                  <button
+                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('expert'); }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Domain Expert Portal</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

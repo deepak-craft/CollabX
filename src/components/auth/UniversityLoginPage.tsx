@@ -87,7 +87,7 @@ export const UniversityLoginPage: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md space-y-2 text-center mb-6">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center justify-center gap-2">
           <GraduationCap className="w-6 h-6 text-gov-blue" />
-          University Login
+          University / Research Login
         </h1>
       </div>
 
@@ -123,10 +123,11 @@ export const UniversityLoginPage: React.FC = () => {
 
         <form onSubmit={otpSent ? handleLogin : handleSendOtp} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="university-email" className="block text-xs font-semibold text-slate-700 mb-1">
               Institutional Email (.ac.in / .edu)
             </label>
             <input
+              id="university-email"
               type="email"
               placeholder={academicRole === 'student' ? 'student@bitmesra.ac.in' : 'faculty@bitmesra.ac.in'}
               value={universityEmail}
@@ -140,7 +141,7 @@ export const UniversityLoginPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="university-mobile" className="block text-xs font-semibold text-slate-700 mb-1">
               Mobile Number
             </label>
             <div className="relative flex rounded-md shadow-xs">
@@ -148,6 +149,7 @@ export const UniversityLoginPage: React.FC = () => {
                 +91
               </span>
               <input
+                id="university-mobile"
                 type="tel"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -188,8 +190,8 @@ export const UniversityLoginPage: React.FC = () => {
         </form>
 
         <div className="pt-4 border-t border-slate-100 text-center">
-          <Link to="/" className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Home
+          <Link to="/login" className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition">
+            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to account type
           </Link>
         </div>
       </div>

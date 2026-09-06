@@ -3,6 +3,7 @@ import { Project, ProjectTask, ProjectMilestone } from '../../types';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { collabxApi } from '../../services/collabxApi';
 import { 
   Layers, 
   CheckCircle2, 
@@ -31,6 +32,16 @@ export const SharedWorkspace: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'overview' | 'milestones' | 'tasks' | 'testing' | 'docs'>('overview');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [pilotSyncState, setPilotSyncState] = useState<'idle' | 'saved' | 'failed'>('idle');
+
+  React.useEffect(() => {
+    void collabxApi.getProject(project.id).then(backendProject => {
+      const metrics = backendProject.pilot_metrics_json ? JSON.parse(backendProject.pilot_metrics_json) : {};
+      setProject(current => ({ ...current, status: (backendProject.status as Project['status']) || current.status, pilotMetrics: { ...current.pilotMetrics, ...metrics } }));
+    }).catch(() => {
+      // Local project remains available while offline.
+    });
+  }, [project.id]);
 
   // Toggle task status
   const handleToggleTask = (taskId: string) => {
@@ -48,6 +59,27 @@ export const SharedWorkspace: React.FC = () => {
     project.tasks = updatedTasks;
     storageService.saveProject(updatedProject);
     setProject({ ...updatedProject });
+  };
+
+  const handleMilestoneStatus = async (milestone: ProjectMilestone) => {
+    const nextStatus: ProjectMilestone['status'] = milestone.status === 'completed' ? 'pending' : 'completed';
+    try {
+      await collabxApi.updateMilestone(milestone.id, nextStatus);
+      const updatedProject = { ...project, milestones: project.milestones.map(item => item.id === milestone.id ? { ...item, status: nextStatus } : item) };
+      setProject(updatedProject);
+      storageService.saveProject(updatedProject);
+    } catch {
+      // Keep the local workspace usable when the API is unavailable.
+    }
+  };
+
+  const handleSyncPilotMetrics = async () => {
+    try {
+      await collabxApi.updatePilot(project.id, project.status, project.pilotMetrics as unknown as Record<string, unknown>);
+      setPilotSyncState('saved');
+    } catch {
+      setPilotSyncState('failed');
+    }
   };
 
   const handleAddTask = (e: React.FormEvent) => {
@@ -212,6 +244,13 @@ export const SharedWorkspace: React.FC = () => {
               </span>
             </div>
           </div>
+          <div className="flex items-center justify-end gap-3">
+            {pilotSyncState === 'saved' && <span className="text-xs font-semibold text-emerald-700">Pilot metrics saved</span>}
+            {pilotSyncState === 'failed' && <span className="text-xs font-semibold text-amber-700">Pilot metrics remain local until connected</span>}
+            <button type="button" onClick={() => void handleSyncPilotMetrics()} className="px-3 py-1.5 border border-slate-300 rounded text-xs font-bold text-slate-700 hover:bg-slate-100">
+              Save pilot metrics
+            </button>
+          </div>
 
           {/* Siphon Architecture Diagram / Explanation */}
           <div className="bg-white rounded-lg border border-gov-border shadow-gov p-5 space-y-3">
@@ -280,6 +319,13 @@ export const SharedWorkspace: React.FC = () => {
 
                 <div className="text-right text-xs">
                   <span className="text-slate-500 block">Due Date: {m.dueDate}</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleMilestoneStatus(m)}
+                    className="mt-2 px-2 py-1 border border-slate-300 rounded text-[10px] font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    {m.status === 'completed' ? 'Reopen milestone' : 'Mark complete'}
+                  </button>
                   {m.completedAt && (
                     <span className="text-emerald-700 font-bold block">✓ Completed {m.completedAt}</span>
                   )}

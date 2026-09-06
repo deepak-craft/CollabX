@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Project, CitizenFeedback } from '../../types';
 import { storageService } from '../../services/storageService';
+import { collabxApi } from '../../services/collabxApi';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { 
   ResponsiveContainer, 
@@ -29,8 +30,32 @@ import {
 
 export const ImpactDashboard: React.FC = () => {
   const { t } = useAccessibility();
-  const [project] = useState<Project>(() => storageService.getProjects()[0]);
-  const [feedback] = useState<CitizenFeedback[]>(() => storageService.getFeedback());
+  const [project, setProject] = useState<Project>(() => storageService.getProjects()[0]);
+  const [feedback, setFeedback] = useState<CitizenFeedback[]>(() => storageService.getFeedback());
+
+  useEffect(() => {
+    let active = true;
+    void collabxApi.getProject(project.id).then(async backendProject => {
+      const persistedMetrics = backendProject.pilot_metrics_json ? JSON.parse(backendProject.pilot_metrics_json) : {};
+      const persistedFeedback = await collabxApi.getProjectFeedback(project.id);
+      if (!active) return;
+      setProject(current => ({ ...current, status: (backendProject.status as Project['status']) || current.status, pilotMetrics: { ...current.pilotMetrics, ...persistedMetrics } }));
+      setFeedback(persistedFeedback.map(item => ({
+        id: item.id,
+        projectId: item.project_id,
+        citizenName: item.submitted_by || 'Citizen',
+        locality: item.locality || project.pilotMetrics.pilotLocation,
+        solvedStatus: item.solved_status || 'YES',
+        rating: item.rating || 0,
+        comment: item.comments || '',
+        photoProofUrl: item.photo_proof_url || undefined,
+        submittedAt: item.created_at,
+      })));
+    }).catch(() => {
+      // Seed/local data remains available when the backend is offline.
+    });
+    return () => { active = false; };
+  }, [project.id, project.pilotMetrics.pilotLocation]);
 
   const { pilotMetrics } = project;
 

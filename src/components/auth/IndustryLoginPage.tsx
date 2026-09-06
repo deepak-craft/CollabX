@@ -3,10 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Briefcase, AlertCircle, ArrowLeft } from 'lucide-react';
 import { OtpInput } from './OtpInput';
+import { collabxApi } from '../../services/collabxApi';
 
 export const IndustryLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { loginAs } = useAuth();
+  const { login } = useAuth();
 
   const [workEmail, setWorkEmail] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -14,6 +15,7 @@ export const IndustryLoginPage: React.FC = () => {
   const [designation, setDesignation] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,27 +69,36 @@ export const IndustryLoginPage: React.FC = () => {
     return true;
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const response = await collabxApi.requestOtp(workEmail, 'industry', companyName);
+      setChallengeId(response.challenge_id);
       setIsSubmitting(false);
       setOtpSent(true);
       setOtp('');
-    }, 500);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to send OTP.');
+      setIsSubmitting(false);
+    }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      loginAs('industry', 'Industry Partner');
+    try {
+      const response = await collabxApi.verifyOtp(challengeId, otp);
+      await login(response.access_token);
       navigate('/industry');
-    }, 500);
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : 'Unable to verify OTP.');
+      setIsSubmitting(false);
+    }
   };
 
   return (

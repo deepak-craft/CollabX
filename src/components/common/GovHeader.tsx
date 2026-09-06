@@ -17,7 +17,6 @@ import {
   GraduationCap, 
   Briefcase, 
   CheckCircle2,
-  Home,
   Menu,
   X,
   LogIn
@@ -30,7 +29,7 @@ interface GovHeaderProps {
 export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, allPersonas, selectPersona, loginAs, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const {
     language,
     toggleLanguage,
@@ -39,9 +38,7 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
 
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState<boolean>(false);
-  const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [isSwitchPortalOpen, setIsSwitchPortalOpen] = useState<boolean>(false);
   const [notifications, setNotifications] = useState(() => storageService.getNotifications());
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -75,25 +72,6 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
     setSearchTerm(e.target.value);
     if (onSearch) {
       onSearch(e.target.value);
-    }
-  };
-
-  const handleNavigatePortal = (role: 'citizen' | 'student' | 'industry' | 'government' | 'expert') => {
-    if (role === 'citizen') {
-      loginAs('citizen', 'Citizen');
-      navigate('/citizen');
-    } else if (role === 'student') {
-      loginAs('student', 'Student');
-      navigate('/university');
-    } else if (role === 'industry') {
-      loginAs('industry', 'Industry Partner');
-      navigate('/industry');
-    } else if (role === 'government') {
-      loginAs('government', 'Government Officer');
-      navigate('/government');
-    } else if (role === 'expert') {
-      loginAs('expert', 'Domain Expert');
-      navigate('/expert');
     }
   };
 
@@ -249,7 +227,7 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
               {/* Persona Profile Switcher */}
               <div className="relative">
                 <button
-                  onClick={() => setIsPersonaMenuOpen(prev => !prev)}
+                  onClick={() => navigate('/')} 
                   className="flex items-center space-x-2 p-1.5 border border-gov-border rounded-lg hover:bg-slate-50 transition text-left focus:ring-2 focus:ring-gov-blue"
                 >
                   <div className="w-8 h-8 rounded-full bg-gov-navy text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
@@ -274,65 +252,16 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                   <ChevronDown className="w-4 h-4 text-slate-500 hidden sm:block" />
                 </button>
 
-                {/* Dropdown menu */}
-                {isPersonaMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-gov-lg border border-gov-border z-50 overflow-hidden">
-                    <div className="bg-slate-50 p-3 border-b border-slate-200">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        {t('Switch User Profile', 'प्रोफाइल बदलें')}
-                      </div>
-                      <div className="text-xs text-slate-700 font-medium mt-1">
-                        {currentUser.organization} • {currentUser.district}
-                      </div>
-                    </div>
-
-                    <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-                      {allPersonas.map(persona => (
-                        <button
-                          key={persona.id}
-                          onClick={() => {
-                            selectPersona(persona);
-                            setIsPersonaMenuOpen(false);
-                            const dest = 
-                              persona.role === 'citizen' ? '/citizen' :
-                              persona.role === 'student' || persona.role === 'professor' ? '/university' :
-                              persona.role === 'industry' ? '/industry' :
-                              persona.role === 'government' ? '/government' : '/expert';
-                            navigate(dest);
-                          }}
-                          className={`w-full p-2.5 text-left text-xs flex items-center space-x-3 transition hover:bg-blue-50 ${
-                            persona.id === currentUser.id ? 'bg-blue-50/80 font-bold border-l-4 border-gov-blue' : ''
-                          }`}
-                        >
-                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                            {persona.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-slate-900 truncate font-semibold">{persona.name}</div>
-                            <div className="text-[11px] text-slate-500 truncate">{persona.title}</div>
-                          </div>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getRoleBadgeColor(persona.role)}`}>
-                            {persona.subRole || persona.role}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="p-2 bg-slate-50 border-t border-slate-200 flex justify-start items-center">
-                      <button
-                        onClick={() => {
-                          setIsPersonaMenuOpen(false);
-                          logout();
-                          navigate('/');
-                        }}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center space-x-1 p-1 rounded hover:bg-red-50"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>{t('Main Login Portal', 'लॉगिन पोर्टल पर जाएं')}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate('/');
+                  }}
+                  className="absolute right-0 mt-2 text-xs text-red-600 hover:text-red-800 font-medium flex items-center space-x-1 p-2 rounded bg-white border border-slate-200 shadow-gov"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{t('Sign out', 'लॉग आउट')}</span>
+                </button>
               </div>
             </>
           )}
@@ -418,67 +347,14 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
         <div className="bg-slate-100 border-t border-gov-border px-4 sm:px-8 py-2 flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center space-x-2">
             <span className="text-slate-600 font-bold uppercase tracking-wider text-[11px]">Active Portal:</span>
-            <div className="relative">
-              <button
-                onClick={() => setIsSwitchPortalOpen(prev => !prev)}
-                className="px-3 py-1.5 bg-gov-navy text-white rounded font-bold text-xs flex items-center space-x-2 shadow-xs hover:bg-slate-800 transition"
-              >
-                <span>
-                  {location.pathname.startsWith('/citizen') ? 'Citizen Portal' :
-                   location.pathname.startsWith('/university') ? 'University Portal' :
-                   location.pathname.startsWith('/industry') ? 'Industry Portal' :
-                   location.pathname.startsWith('/government') ? 'Government Portal' :
-                   location.pathname.startsWith('/expert') ? 'Domain Expert Portal' : 'CollabX Main'}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-gov-saffron" />
-              </button>
-
-              {isSwitchPortalOpen && (
-                <div className="absolute left-0 mt-1 w-56 bg-white border border-slate-300 rounded shadow-md z-50 py-1 font-semibold">
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); navigate('/'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <Home className="w-3.5 h-3.5 text-gov-saffron" />
-                    <span>Portal Home</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('citizen'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <UserCheck className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Citizen Portal</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('student'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-                    <span>University Portal</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('industry'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Industry Portal</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('government'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Government Portal</span>
-                  </button>
-                  <button
-                    onClick={() => { setIsSwitchPortalOpen(false); handleNavigatePortal('expert'); }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-800 flex items-center space-x-2"
-                  >
-                    <Shield className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Domain Expert Portal</span>
-                  </button>
-                </div>
-              )}
+            <div className="px-3 py-1.5 bg-gov-navy text-white rounded font-bold text-xs flex items-center space-x-2 shadow-xs">
+              <span>
+                {location.pathname.startsWith('/citizen') ? 'Citizen Portal' :
+                 location.pathname.startsWith('/university') ? 'University Portal' :
+                 location.pathname.startsWith('/industry') ? 'Industry Portal' :
+                 location.pathname.startsWith('/government') ? 'Government Portal' :
+                 location.pathname.startsWith('/expert') ? 'Domain Expert Portal' : 'CollabX Main'}
+              </span>
             </div>
           </div>
         </div>

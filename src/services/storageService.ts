@@ -29,6 +29,7 @@ import {
 } from '../data/initialSeedData';
 
 const STORAGE_KEYS = {
+  AUTH_TOKEN: 'collabx_auth_token',
   CURRENT_USER: 'collabx_current_user',
   PROBLEMS: 'collabx_problems',
   CHALLENGES: 'collabx_challenges',
@@ -41,6 +42,7 @@ const STORAGE_KEYS = {
   POSTS: 'collabx_posts',
   NOTIFICATIONS: 'collabx_notifications',
   AUDIT_LOGS: 'collabx_audit_logs',
+  PENDING_FEEDBACK: 'collabx_pending_feedback',
 };
 
 class StorageService {
@@ -62,6 +64,19 @@ class StorageService {
     } catch (e) {
       console.error(`Error saving ${key} to storage`, e);
     }
+  }
+
+  getAuthToken(): string | null {
+    return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  }
+
+  setAuthToken(token: string): void {
+    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
+  }
+
+  clearAuth(): void {
+    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
   }
 
   // Current User
@@ -181,6 +196,20 @@ class StorageService {
     const feedbackList = this.getFeedback();
     feedbackList.unshift(fb);
     this.setItem(STORAGE_KEYS.FEEDBACK, feedbackList);
+  }
+
+  getPendingFeedback(): CitizenFeedback[] {
+    return this.getItem<CitizenFeedback[]>(STORAGE_KEYS.PENDING_FEEDBACK, []);
+  }
+
+  savePendingFeedback(fb: CitizenFeedback): void {
+    const pending = this.getPendingFeedback().filter(item => item.id !== fb.id);
+    pending.unshift(fb);
+    this.setItem(STORAGE_KEYS.PENDING_FEEDBACK, pending);
+  }
+
+  removePendingFeedback(id: string): void {
+    this.setItem(STORAGE_KEYS.PENDING_FEEDBACK, this.getPendingFeedback().filter(item => item.id !== id));
   }
 
   // Replications

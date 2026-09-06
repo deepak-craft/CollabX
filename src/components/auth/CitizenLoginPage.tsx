@@ -3,16 +3,18 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Phone, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 import { OtpInput } from './OtpInput';
+import { collabxApi } from '../../services/collabxApi';
 
 export const CitizenLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { loginAs } = useAuth();
+  const { login } = useAuth();
 
   const [authMode, setAuthMode] = useState<'mobile' | 'email'>('mobile');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -110,27 +112,37 @@ export const CitizenLoginPage: React.FC = () => {
     return true;
   };
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const identifier = authMode === 'mobile' ? mobileNumber : email;
+      const response = await collabxApi.requestOtp(identifier, 'citizen');
+      setChallengeId(response.challenge_id);
       setIsSubmitting(false);
       setOtpSent(true);
       setOtp('');
-    }, 500);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to send OTP.');
+      setIsSubmitting(false);
+    }
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      loginAs('citizen', 'Citizen');
+    try {
+      const response = await collabxApi.verifyOtp(challengeId, otp);
+      await login(response.access_token);
       navigate('/citizen');
-    }, 500);
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : 'Unable to verify OTP.');
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditContact = () => {

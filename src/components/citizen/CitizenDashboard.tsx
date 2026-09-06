@@ -9,6 +9,7 @@ import { NearbyProblems } from './NearbyProblems';
 import { MyReportsTimeline } from './MyReportsTimeline';
 import { CitizenFeedbackModal } from './CitizenFeedbackModal';
 import { CitizenPortalLayout } from './CitizenPortalLayout';
+import { OfflineReportsStatus } from './OfflineReportsStatus';
 import { 
   PlusCircle, 
   Search, 
@@ -74,6 +75,7 @@ export const CitizenDashboard: React.FC = () => {
           index
           element={
             <div className="space-y-6">
+              <OfflineReportsStatus />
               <div className="bg-white p-4 rounded-md border border-slate-200 space-y-1">
                 <h2 className="text-base font-bold text-gov-navy">Citizen Dashboard</h2>
                 <p className="text-xs text-slate-600">
@@ -211,6 +213,7 @@ export const CitizenDashboard: React.FC = () => {
           path="report"
           element={
             <div className="space-y-4">
+              <OfflineReportsStatus />
               <div className="bg-white p-4 rounded-md border border-slate-200 text-xs text-slate-600">
                 <h2 className="text-sm font-bold text-gov-navy mb-1">Report a Problem</h2>
                 <p>Fill out the required details below to submit a formal report to municipal authorities.</p>

@@ -1,15 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserPersona, UserRole } from '../types';
+import { UserPersona } from '../types';
 import { storageService } from '../services/storageService';
+import { collabxApi } from '../services/collabxApi';
 
 interface AuthContextType {
   currentUser: UserPersona;
-  allPersonas: UserPersona[];
   isLoggedIn: boolean;
+  isLoading: boolean;
   showLandingPage: boolean;
   setShowLandingPage: (show: boolean) => void;
-  loginAs: (role: UserRole, subRole?: string) => void;
-  selectPersona: (persona: UserPersona) => void;
+  login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -17,28 +17,61 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUserState] = useState<UserPersona>(() => storageService.getCurrentUser());
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(Boolean(storageService.getAuthToken()));
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(storageService.getAuthToken()));
   const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
-  const allPersonas = storageService.getAllPersonas();
 
   useEffect(() => {
-    storageService.setCurrentUser(currentUser);
-  }, [currentUser]);
+    if (!storageService.getAuthToken()) {
+      setIsLoading(false);
+      return;
+    }
+    void collabxApi.getCurrentUser()
+      .then(user => {
+        setCurrentUserState({
+          ...user,
+          subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
+          title: user.role,
+          organization: 'CollabX',
+          district: 'Jharkhand',
+          verified: true,
+        });
+        setIsLoggedIn(true);
+      })
+      .catch(() => {
+        storageService.clearAuth();
+        setIsLoggedIn(false);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
-  const loginAs = (role: UserRole, subRole?: string) => {
-    const persona = storageService.getPersonaByRole(role, subRole);
-    setCurrentUserState(persona);
-    setIsLoggedIn(true);
-    setShowLandingPage(false);
-  };
+  useEffect(() => {
+    const handleAuthError = () => {
+      setIsLoggedIn(false);
+      setShowLandingPage(true);
+    };
+    window.addEventListener('collabx:auth-error', handleAuthError);
+    return () => window.removeEventListener('collabx:auth-error', handleAuthError);
+  }, []);
 
-  const selectPersona = (persona: UserPersona) => {
-    setCurrentUserState(persona);
+  const login = async (token: string) => {
+    storageService.setAuthToken(token);
+    const user = await collabxApi.getCurrentUser();
+    setCurrentUserState({
+      ...user,
+      subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
+      title: user.role,
+      organization: 'CollabX',
+      district: 'Jharkhand',
+      verified: true,
+    });
     setIsLoggedIn(true);
     setShowLandingPage(false);
   };
 
   const logout = () => {
+    storageService.clearAuth();
+    setIsLoggedIn(false);
     setShowLandingPage(true);
   };
 
@@ -46,12 +79,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         currentUser,
-        allPersonas,
         isLoggedIn,
+        isLoading,
         showLandingPage,
         setShowLandingPage,
-        loginAs,
-        selectPersona,
+        login,
         logout,
       }}
     >

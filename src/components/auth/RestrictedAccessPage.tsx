@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, Building2, Lock, CheckCircle2, AlertCircle, Key, Award } from 'lucide-react';
+import { collabxApi } from '../../services/collabxApi';
+import { Shield, Building2, Lock, AlertCircle, Key, Award } from 'lucide-react';
 
 export const RestrictedAccessPage: React.FC = () => {
   const navigate = useNavigate();
-  const { loginAs } = useAuth();
+  const { login } = useAuth();
 
   const [restrictedRole, setRestrictedRole] = useState<'government' | 'expert'>('government');
   const [govId, setGovId] = useState('');
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [challengeId, setChallengeId] = useState('');
 
   const handleVerifyAndLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,16 +25,42 @@ export const RestrictedAccessPage: React.FC = () => {
       return;
     }
 
+    if (!otpSent && passcode) {
+      setError('Leave the passcode blank until the OTP is sent.');
+      return;
+    }
+    if (otpSent && !/^\d{6}$/.test(passcode)) {
+      setError('Please enter the 6-digit verification OTP.');
+      return;
+    }
+
     setIsVerifying(true);
-    setTimeout(() => {
-      if (restrictedRole === 'government') {
-        loginAs('government', 'Government Officer');
-        navigate('/government');
-      } else {
-        loginAs('expert', 'Domain Expert');
-        navigate('/expert');
+    const role = restrictedRole;
+    try {
+      if (!otpSent) {
+        void collabxApi.requestOtp(govId.trim(), role).then(response => {
+          setChallengeId(response.challenge_id);
+          setOtpSent(true);
+          setPasscode('');
+          setIsVerifying(false);
+        }).catch(requestError => {
+          setError(requestError instanceof Error ? requestError.message : 'Unable to send OTP.');
+          setIsVerifying(false);
+        });
+        return;
       }
-    }, 600);
+
+      void collabxApi.verifyOtp(challengeId, passcode).then(async response => {
+        await login(response.access_token);
+        navigate(role === 'government' ? '/government' : '/expert');
+      }).catch(verifyError => {
+        setError(verifyError instanceof Error ? verifyError.message : 'Unable to verify OTP.');
+        setIsVerifying(false);
+      });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to authenticate.');
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -109,6 +138,7 @@ export const RestrictedAccessPage: React.FC = () => {
                   placeholder={restrictedRole === 'government' ? 'JH-IAS-2014-882' : 'EXP-HYD-9912'}
                   value={govId}
                   onChange={e => setGovId(e.target.value)}
+                  disabled={otpSent}
                   className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-gov-blue focus:border-gov-blue font-mono"
                 />
               </div>
@@ -123,9 +153,12 @@ export const RestrictedAccessPage: React.FC = () => {
                 <input
                   id="security-passcode"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={otpSent ? '123456' : 'OTP will be requested next'}
                   value={passcode}
                   onChange={e => setPasscode(e.target.value)}
+                  inputMode={otpSent ? 'numeric' : undefined}
+                  maxLength={otpSent ? 6 : undefined}
+                  disabled={!otpSent}
                   className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-gov-blue focus:border-gov-blue"
                 />
               </div>
@@ -138,7 +171,7 @@ export const RestrictedAccessPage: React.FC = () => {
                 restrictedRole === 'government' ? 'bg-amber-800 hover:bg-amber-900' : 'bg-purple-800 hover:bg-purple-900'
               }`}
             >
-              <span>{isVerifying ? 'Authenticating Credentials...' : 'Authenticate Credentials & Enter →'}</span>
+              <span>{isVerifying ? 'Authenticating Credentials...' : otpSent ? 'Verify OTP & Enter' : 'Send OTP'}</span>
             </button>
           </form>
 

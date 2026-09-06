@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CitizenFeedback } from '../../types';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
+import { collabxApi } from '../../services/collabxApi';
 import { Star, CheckCircle2, X, Camera, Send } from 'lucide-react';
 
 interface CitizenFeedbackModalProps {
@@ -30,11 +31,37 @@ export const CitizenFeedbackModal: React.FC<CitizenFeedbackModalProps> = ({
     'For the first time in 7 years, yesterday heavy downpour cleared out in just 1.5 hours! The road in front of our house and the primary school remained completely passable.'
   );
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const syncPending = async () => {
+      if (!navigator.onLine) return;
+      for (const pending of storageService.getPendingFeedback()) {
+        try {
+          await collabxApi.submitFeedback(pending.projectId, {
+            id: pending.id,
+            rating: pending.rating,
+            comments: pending.comment,
+            solved_status: pending.solvedStatus,
+            locality: pending.locality,
+            photo_proof_url: pending.photoProofUrl || undefined,
+          });
+          storageService.removePendingFeedback(pending.id);
+        } catch {
+          return;
+        }
+      }
+    };
+    void syncPending();
+    window.addEventListener('online', syncPending);
+    return () => window.removeEventListener('online', syncPending);
+  }, []);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     const newFeedback: CitizenFeedback = {
       id: `fb-${Date.now()}`,
@@ -48,6 +75,18 @@ export const CitizenFeedbackModal: React.FC<CitizenFeedbackModalProps> = ({
       submittedAt: new Date().toISOString(),
     };
 
+    try {
+      await collabxApi.submitFeedback(projectId, {
+        id: newFeedback.id,
+        rating,
+        comments: comment,
+        solved_status: solvedStatus,
+        locality,
+        photo_proof_url: newFeedback.photoProofUrl,
+      });
+    } catch {
+      storageService.savePendingFeedback(newFeedback);
+    }
     storageService.saveFeedback(newFeedback);
 
     // Audit log
@@ -72,6 +111,7 @@ export const CitizenFeedbackModal: React.FC<CitizenFeedbackModalProps> = ({
     });
 
     setIsSuccess(true);
+    setIsSubmitting(false);
     setTimeout(() => {
       setIsSuccess(false);
       onSubmitted();
@@ -216,10 +256,11 @@ export const CitizenFeedbackModal: React.FC<CitizenFeedbackModalProps> = ({
               </button>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="px-5 py-2 bg-gov-navy hover:bg-gov-navy-dark text-white font-bold rounded flex items-center space-x-1.5 shadow-sm"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{t('Submit Validation', 'सत्यापन जमा करें')}</span>
+                <span>{isSubmitting ? t('Saving...', 'सहेजा जा रहा है...') : t('Submit Validation', 'सत्यापन जमा करें')}</span>
               </button>
             </div>
           </form>

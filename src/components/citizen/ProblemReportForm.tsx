@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProblemReport } from '../../types';
 import { AIEngineService } from '../../services/aiEngineService';
+import { collabxApi } from '../../services/collabxApi';
+import { indexedDbService } from '../../services/indexedDbService';
+import { localTranscriptionService } from '../../services/localTranscriptionService';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
@@ -50,11 +53,36 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioTranscript, setAudioTranscript] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [usingDemoVoice, setUsingDemoVoice] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+
+  const transcribeRecordedAudio = async (blob: Blob) => {
+    if (!localTranscriptionService.isSupported()) {
+      setVoiceError('Local transcription is not supported on this device. You can type the report normally below.');
+      return;
+    }
+
+    setIsTranscribing(true);
+    setVoiceError(null);
+    try {
+      const transcript = await localTranscriptionService.transcribe(blob);
+      if (transcript) {
+        setAudioTranscript(transcript);
+        setDescription(transcript);
+      } else {
+        setVoiceError('No speech was detected. You can type the report normally below.');
+      }
+    } catch (error) {
+      console.warn('Local transcription unavailable:', error);
+      setVoiceError('Local transcription could not run. Your audio stays on this device; you can type the report normally below.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   // Timer effect for voice recording
   useEffect(() => {
@@ -99,6 +127,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
         const url = URL.createObjectURL(audioBlobObj);
         setAudioBlob(audioBlobObj);
         setAudioUrl(url);
+        void transcribeRecordedAudio(audioBlobObj);
         // Clean up tracks
         stream.getTracks().forEach(track => track.stop());
       };
@@ -127,6 +156,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
     setAudioBlob(null);
     setAudioTranscript('');
     setVoiceError(null);
+    setIsTranscribing(false);
     setUsingDemoVoice(false);
   };
 
@@ -135,9 +165,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
     setUsingDemoVoice(true);
     const demoVoiceText = 'Every monsoon, water enters this road and school children cannot cross. The main culvert is choked and water stands for 8 hours.';
     setAudioTranscript(demoVoiceText);
-    if (!description) {
-      setDescription(demoVoiceText);
-    }
+    setDescription(demoVoiceText);
     if (!title) {
       setTitle('Waterlogging in Harmu bypass cutting off school access');
     }
@@ -270,6 +298,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
   // ====================================================
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (description.trim().length > 15) {
@@ -286,7 +315,17 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
     }
   }, [title, description, locality]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const syncPendingReports = () => {
+      void indexedDbService.syncPendingReports(payload => collabxApi.createProblem(payload));
+    };
+
+    syncPendingReports();
+    window.addEventListener('online', syncPendingReports);
+    return () => window.removeEventListener('online', syncPendingReports);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const finalCoordinates = coordinates || { lat: 23.3541, lng: 85.3211 };
@@ -313,6 +352,37 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       aiAnalysis: finalAiAnalysis,
       createdAt: new Date().toISOString(),
     };
+
+    const pendingReport = {
+      title: newProblem.title,
+      description: newProblem.description,
+      district: newProblem.district,
+      locality: newProblem.panchayatOrLocality,
+      citizen_name: newProblem.citizenName,
+      citizen_phone: newProblem.citizenPhone,
+      coordinates: newProblem.coordinates,
+      affected_population: newProblem.affectedPopulation,
+      frequency: newProblem.frequency,
+      evidence_urls: newProblem.evidenceUrls,
+      audio_transcript: newProblem.audioTranscript || null,
+      has_voice_note: newProblem.hasVoiceNote || false,
+      createdAt: newProblem.createdAt,
+    };
+
+    try {
+      await indexedDbService.enqueueReport({ ...pendingReport, id: newProblem.id });
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const syncResult = await indexedDbService.syncPendingReports(payload => collabxApi.createProblem(payload));
+        if (syncResult.failed > 0) {
+          setOfflineMessage('Saved offline – will sync when internet is available.');
+        }
+      } else {
+        setOfflineMessage('Saved offline – will sync when internet is available.');
+      }
+    } catch (error) {
+      console.warn('Backend sync unavailable; submission remains queued locally.', error);
+      setOfflineMessage('Saved offline – will sync when internet is available.');
+    }
 
     storageService.saveProblem(newProblem);
 
@@ -356,6 +426,11 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {offlineMessage && (
+          <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900" role="status">
+            {offlineMessage}
+          </div>
+        )}
         {/* ==================================================== */}
         {/* 1. VOICE RECORDING SECTION (MediaRecorder API)       */}
         {/* ==================================================== */}
@@ -432,10 +507,26 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
           {audioTranscript && (
             <div className="p-2.5 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 flex items-start space-x-2">
               <Volume2 className="w-4 h-4 text-gov-saffron flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Transcript Preview:</span> "{audioTranscript}"
+              <div className="flex-1 space-y-1.5">
+                <label htmlFor="voice-transcript" className="font-bold block">Local Transcript (editable):</label>
+                <textarea
+                  id="voice-transcript"
+                  value={audioTranscript}
+                  onChange={event => {
+                    setAudioTranscript(event.target.value);
+                    setDescription(event.target.value);
+                  }}
+                  rows={3}
+                  className="w-full rounded border border-amber-300 bg-white p-2 text-xs text-slate-800 outline-none focus:border-gov-saffron"
+                />
                 {usingDemoVoice && <span className="block text-[10px] text-amber-700 font-semibold mt-0.5">• Preset Sample Audio Applied</span>}
               </div>
+            </div>
+          )}
+          {isTranscribing && (
+            <div className="p-2.5 bg-blue-50 rounded border border-blue-200 text-xs text-blue-800 flex items-center space-x-2">
+              <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" />
+              <span>Loading Whisper locally and transcribing on this device...</span>
             </div>
           )}
         </div>

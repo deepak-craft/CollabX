@@ -1,7 +1,7 @@
 import { ProblemReport, UserRole } from '../types';
 import { storageService } from './storageService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+let activeBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 export interface AuthUserResponse {
   id: string;
@@ -60,7 +60,30 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${activeBaseUrl}${path}`, { ...init, headers });
+  } catch (error) {
+    // If localhost failed, attempt IPv4 127.0.0.1 fallback for Windows resolution issues
+    if (activeBaseUrl.includes('localhost:8000')) {
+      try {
+        const fallbackUrl = activeBaseUrl.replace('localhost:8000', '127.0.0.1:8000');
+        response = await fetch(`${fallbackUrl}${path}`, { ...init, headers });
+        activeBaseUrl = fallbackUrl;
+      } catch {
+        throw new ApiError(
+          0,
+          `Cannot reach CollabX backend at ${activeBaseUrl}. Please ensure the backend server is running on port 8000.`
+        );
+      }
+    } else {
+      throw new ApiError(
+        0,
+        `Cannot reach CollabX backend at ${activeBaseUrl}. Please ensure the backend server is running on port 8000.`
+      );
+    }
+  }
+
   if (!response.ok) {
     let message = response.status === 403 ? 'You do not have permission to perform this action.' : 'Request failed.';
     try {
@@ -104,7 +127,10 @@ export const collabxApi = {
   verifyOtp(challengeId: string, otp: string): Promise<TokenResponse> {
     return apiRequest<TokenResponse>('/auth/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ challenge_id: challengeId, otp }),
+      body: JSON.stringify({
+        challenge_id: String(challengeId).trim(),
+        otp: String(otp).trim(),
+      }),
     });
   },
 
@@ -142,7 +168,8 @@ export const collabxApi = {
   },
 
   async healthCheck(): Promise<{ status: string; service: string }> {
-    const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+    const rootUrl = activeBaseUrl.replace(/\/api\/?$/, '');
+    const response = await fetch(`${rootUrl}/health`);
     if (!response.ok) {
       throw new Error('Health check failed');
     }

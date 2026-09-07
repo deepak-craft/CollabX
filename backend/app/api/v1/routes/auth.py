@@ -60,10 +60,9 @@ def _check_request_rate_limit(identifier: str, role: str, now: datetime) -> None
 
 def _deliver_otp(identifier: str, otp: str, expires_at: datetime) -> None:
     if settings.auth_mode == "demo":
-        logger.warning(
-            "[DEMO OTP] recipient=%s otp=%s expires_at=%s",
+        logger.info(
+            "[DEMO OTP] Demo challenge generated for recipient=%s expires_at=%s",
             identifier,
-            otp,
             expires_at.isoformat(),
         )
         return
@@ -113,8 +112,12 @@ async def request_otp(payload: OTPRequest, db: Session = Depends(get_db)) -> OTP
         db.refresh(user)
 
     challenge_id = secrets.token_urlsafe(24)
-    # Generate OTP: use dev OTP if enabled, otherwise random 6‑digit
-    otp = f"{secrets.randbelow(1_000_000):06d}"
+    # Generate OTP: use demo OTP if in demo or dev mode, otherwise random 6‑digit
+    if settings.auth_mode == "demo" or settings.auth_dev_mode:
+        otp = settings.auth_dev_otp or "123456"
+    else:
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+
     expires_at = requested_at + timedelta(seconds=settings.auth_otp_expire_seconds)
     _deliver_otp(payload.identifier, otp, expires_at)
     # Store OTP challenge in database
@@ -143,10 +146,16 @@ async def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)) -
     # Retrieve OTP challenge from DB
     otp_challenge = db.get(OtpChallenge, payload.challenge_id)
     now = datetime.now(timezone.utc)
-    if otp_challenge is None or otp_challenge.expires_at < now or otp_challenge.is_used:
-        if otp_challenge:
-            db.delete(otp_challenge)
-            db.commit()
+    if otp_challenge is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
+
+    expires_at = otp_challenge.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < now or otp_challenge.is_used:
+        db.delete(otp_challenge)
+        db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
     if otp_challenge.attempts >= settings.auth_otp_max_attempts:
         db.delete(otp_challenge)

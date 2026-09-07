@@ -15,17 +15,17 @@ from app.schemas.auth import OTPRequest, OTPVerifyRequest
 
 class FakeDb:
     def __init__(self):
-        self.user = None
+        self.users_by_id = {}
         self.objects = {}
 
     def scalar(self, _query):
-        return self.user
+        return None
 
-    def add(self, user):
-        if isinstance(user, User):
-            self.user = user
+    def add(self, entity):
+        if isinstance(entity, User):
+            self.users_by_id[entity.id] = entity
         else:
-            self.objects[(type(user), user.challenge_id)] = user
+            self.objects[(type(entity), entity.challenge_id)] = entity
 
     def commit(self):
         return None
@@ -35,7 +35,7 @@ class FakeDb:
 
     def get(self, model, item_id):
         if model is User:
-            return self.user
+            return self.users_by_id.get(item_id)
         return self.objects.get((model, item_id))
 
     def delete(self, item):
@@ -120,19 +120,55 @@ def test_otp_requests_are_rate_limited(auth_state, monkeypatch):
     assert limited.value.status_code == 429
 
 
-def test_demo_mode_ignores_legacy_universal_dev_otp(auth_state, monkeypatch):
+def test_demo_mode_uses_configured_dev_otp(auth_state, monkeypatch):
+    monkeypatch.setattr(settings, "auth_mode", "demo")
     monkeypatch.setattr(settings, "auth_dev_mode", True)
     monkeypatch.setattr(settings, "auth_dev_otp", "123456")
     generated = []
     monkeypatch.setattr(auth, "_deliver_otp", lambda _identifier, otp, _expires_at: generated.append(otp))
     db = FakeDb()
 
-    _run(auth.request_otp(OTPRequest(identifier="demo-one@example.com", role="citizen"), db))
-    _run(auth.request_otp(OTPRequest(identifier="demo-two@example.com", role="citizen"), db))
+    resp1 = _run(auth.request_otp(OTPRequest(identifier="demo-one@example.com", role="citizen"), db))
+    resp2 = _run(auth.request_otp(OTPRequest(identifier="demo-two@example.com", role="student"), db))
+
+    assert all(otp == "123456" for otp in generated)
+    # Verification with demo OTP returns valid JWT
+    token = _run(auth.verify_otp(OTPVerifyRequest(challenge_id=resp1.challenge_id, otp="123456"), db))
+    assert token.role == "citizen"
+    assert token.access_token
+
+    # Verification using aliases challengeId / code and int coercion
+    req_alias = OTPVerifyRequest.model_validate({"challengeId": resp2.challenge_id, "code": 123456})
+    token2 = _run(auth.verify_otp(req_alias, db))
+    assert token2.role == "student"
+
+
+def test_sms_mode_generates_random_otp_when_dev_mode_off(auth_state, monkeypatch):
+    monkeypatch.setattr(settings, "auth_mode", "sms")
+    monkeypatch.setattr(settings, "auth_dev_mode", False)
+    monkeypatch.setattr(settings, "auth_otp_provider_url", "https://sms.example.com/send")
+    monkeypatch.setattr(settings, "auth_otp_provider_api_key", "test-key")
+    monkeypatch.setattr(settings, "auth_otp_sender", "COLLABX")
+    generated = []
+    monkeypatch.setattr(auth, "_deliver_otp", lambda _identifier, otp, _expires_at: generated.append(otp))
+    db = FakeDb()
+
+    _run(auth.request_otp(OTPRequest(identifier="sms-one@example.com", role="citizen"), db))
+    _run(auth.request_otp(OTPRequest(identifier="sms-two@example.com", role="citizen"), db))
 
     assert all(len(otp) == 6 and otp.isdigit() for otp in generated)
-    assert all(otp != "123456" for otp in generated)
     assert generated[0] != generated[1]
+
+
+def test_sqlite_naive_datetime_handling(auth_state, monkeypatch):
+    db = FakeDb()
+    resp = _run(auth.request_otp(OTPRequest(identifier="naive-tz@example.com", role="citizen"), db))
+    # Emulate SQLite returning timezone-naive datetime
+    challenge = db.objects[(OtpChallenge, resp.challenge_id)]
+    challenge.expires_at = challenge.expires_at.replace(tzinfo=None)
+
+    token = _run(auth.verify_otp(OTPVerifyRequest(challenge_id=resp.challenge_id, otp="123456"), db))
+    assert token.access_token
 
 
 def test_unauthorized_and_authorized_government_access():
@@ -157,6 +193,7 @@ def test_verified_jwt_reaches_government_rbac_dependency(monkeypatch):
 def test_production_requires_otp_provider(monkeypatch):
     auth._otp_request_history.clear()
     monkeypatch.setattr(settings, "auth_mode", "sms")
+    monkeypatch.setattr(settings, "auth_dev_mode", False)
     monkeypatch.setattr(settings, "auth_otp_provider_url", None)
     monkeypatch.setattr(settings, "auth_otp_provider_api_key", None)
     monkeypatch.setattr(settings, "auth_otp_sender", None)

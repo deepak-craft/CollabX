@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Literal
-
-from pydantic import BaseModel, Field
+from typing import Any, Literal
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 
 AuthRole = Literal["citizen", "student", "professor", "industry", "government", "expert"]
@@ -14,8 +13,37 @@ class OTPRequest(BaseModel):
 
 
 class OTPVerifyRequest(BaseModel):
-    challenge_id: str = Field(..., min_length=10, max_length=128)
-    otp: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    model_config = ConfigDict(populate_by_name=True)
+
+    challenge_id: str = Field(
+        ...,
+        min_length=10,
+        max_length=128,
+        validation_alias=AliasChoices("challenge_id", "challengeId"),
+    )
+    otp: str = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^\d{6}$",
+        validation_alias=AliasChoices("otp", "code"),
+    )
+
+    @field_validator("challenge_id", mode="before")
+    @classmethod
+    def normalize_challenge_id(cls, value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        return str(value) if value is not None else ""
+
+    @field_validator("otp", mode="before")
+    @classmethod
+    def normalize_otp(cls, value: Any) -> str:
+        if isinstance(value, int):
+            return f"{value:06d}"
+        if isinstance(value, str):
+            return value.strip()
+        return str(value) if value is not None else ""
 
 
 class OTPResponse(BaseModel):

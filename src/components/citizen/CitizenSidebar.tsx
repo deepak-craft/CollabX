@@ -14,11 +14,13 @@ import {
 } from 'lucide-react';
 
 interface CitizenSidebarProps {
+  id?: string;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
 
 export const CitizenSidebar: React.FC<CitizenSidebarProps> = ({
+  id,
   isMobileOpen = false,
   onCloseMobile
 }) => {
@@ -67,8 +69,9 @@ export const CitizenSidebar: React.FC<CitizenSidebarProps> = ({
 
   return (
     <aside
+      id={id}
       className={`w-full min-w-0 bg-white border border-slate-200 rounded-md p-4 space-y-1.5 flex-shrink-0 shadow-sm ${
-        isMobileOpen ? 'block' : 'hidden md:block'
+        isMobileOpen ? 'block' : 'hidden'
       }`}
       aria-label="Citizen Portal Navigation"
     >

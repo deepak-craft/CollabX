@@ -1,7 +1,7 @@
 import { ProblemReport, UserRole } from '../types';
 import { storageService } from './storageService';
 
-let activeBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+let activeBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export interface AuthUserResponse {
   id: string;
@@ -64,8 +64,19 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(`${activeBaseUrl}${path}`, { ...init, headers });
   } catch (error) {
-    // If localhost failed, attempt IPv4 127.0.0.1 fallback for Windows resolution issues
-    if (activeBaseUrl.includes('localhost:8000')) {
+    // Attempt IPv4 127.0.0.1 fallback if proxy or localhost resolution failed
+    if (activeBaseUrl === '/api') {
+      try {
+        const fallbackUrl = 'http://127.0.0.1:8000/api';
+        response = await fetch(`${fallbackUrl}${path}`, { ...init, headers });
+        activeBaseUrl = fallbackUrl;
+      } catch {
+        throw new ApiError(
+          0,
+          `Cannot reach CollabX backend at http://127.0.0.1:8000. Please ensure the backend server is running on port 8000.`
+        );
+      }
+    } else if (activeBaseUrl.includes('localhost:8000')) {
       try {
         const fallbackUrl = activeBaseUrl.replace('localhost:8000', '127.0.0.1:8000');
         response = await fetch(`${fallbackUrl}${path}`, { ...init, headers });
@@ -168,8 +179,8 @@ export const collabxApi = {
   },
 
   async healthCheck(): Promise<{ status: string; service: string }> {
-    const rootUrl = activeBaseUrl.replace(/\/api\/?$/, '');
-    const response = await fetch(`${rootUrl}/health`);
+    const healthUrl = `${activeBaseUrl}/health`;
+    const response = await fetch(healthUrl);
     if (!response.ok) {
       throw new Error('Health check failed');
     }

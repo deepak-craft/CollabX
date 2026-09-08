@@ -1,7 +1,9 @@
 import { ProblemReport, UserRole } from '../types';
 import { storageService } from './storageService';
 
-let activeBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+let activeBaseUrl =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? 'https://collabx-api-vhog.onrender.com/api' : '/api');
 
 export interface AuthUserResponse {
   id: string;

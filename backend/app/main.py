@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:8000",
             "http://localhost:4173",
             "http://127.0.0.1:4173",
+            "https://deepak-craft.github.io",
         ],
         allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,

@@ -54,10 +54,9 @@ export const UniversityMatchingView: React.FC<UniversityMatchingViewProps> = ({
   onSuccess
 }) => {
   const { currentUser } = useAuth();
-  const [selectedUniversities, setSelectedUniversities] = useState<string[]>([
-    'Birla Institute of Technology (BIT) Mesra',
-    'IIT (ISM) Dhanbad'
-  ]);
+  const [selectedUniversities, setSelectedUniversities] = useState<string[]>(
+    () => problem.referredUniversities && problem.referredUniversities.length > 0 ? problem.referredUniversities : []
+  );
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const toggleUniversity = (name: string) => {

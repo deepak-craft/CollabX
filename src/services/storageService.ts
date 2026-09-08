@@ -45,6 +45,26 @@ const STORAGE_KEYS = {
   PENDING_FEEDBACK: 'collabx_pending_feedback',
 };
 
+export function normalizeInstitutionName(name: string | undefined | null): string {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/[\(\)\,\.\-\_]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function isSameInstitution(a: string | undefined | null, b: string | undefined | null): boolean {
+  const normA = normalizeInstitutionName(a);
+  const normB = normalizeInstitutionName(b);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.length >= 8 && normB.length >= 8 && (normA.includes(normB) || normB.includes(normA))) {
+    return true;
+  }
+  return false;
+}
+
 class StorageService {
   private getItem<T>(key: string, defaultValue: T): T {
     try {
@@ -123,19 +143,17 @@ class StorageService {
     const problem = problems.find(p => p.id === problemId);
     if (problem) {
       problem.referredUniversities = universityNames;
-      problem.status = 'matching_universities';
+      problem.status = 'university_review';
       this.saveProblem(problem);
     }
   }
 
   getReferredProblemsForUniversity(universityName: string): ProblemReport[] {
+    if (!universityName) return [];
     const problems = this.getProblems();
     return problems.filter(p => {
       if (!p.referredUniversities || p.referredUniversities.length === 0) return false;
-      return p.referredUniversities.some(u =>
-        u.toLowerCase().includes(universityName.toLowerCase()) ||
-        universityName.toLowerCase().includes(u.toLowerCase())
-      );
+      return p.referredUniversities.some(u => isSameInstitution(u, universityName));
     });
   }
 

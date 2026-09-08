@@ -21,6 +21,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(storageService.getAuthToken()));
   const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
 
+  const resolveOrganization = (user: { role: string; organization?: string }): string => {
+    if (user.organization && user.organization.trim() !== '') {
+      return user.organization;
+    }
+    const storedUser = storageService.getCurrentUser();
+    if (storedUser && storedUser.role === user.role && storedUser.organization) {
+      return storedUser.organization;
+    }
+    const persona = storageService.getPersonaByRole(user.role as any);
+    return persona?.organization || '';
+  };
+
   useEffect(() => {
     if (!storageService.getAuthToken()) {
       setIsLoading(false);
@@ -28,14 +40,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     void collabxApi.getCurrentUser()
       .then(user => {
-        setCurrentUserState({
+        const resolvedOrg = resolveOrganization(user);
+        setCurrentUserState(prev => ({
+          ...prev,
           ...user,
           subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
-          title: user.role,
-          organization: 'CollabX',
-          district: 'Jharkhand',
+          title: prev.title || user.role,
+          organization: resolvedOrg,
+          district: prev.district || 'Jharkhand',
           verified: true,
-        });
+        }));
         setIsLoggedIn(true);
       })
       .catch(() => {
@@ -57,14 +71,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (token: string) => {
     storageService.setAuthToken(token);
     const user = await collabxApi.getCurrentUser();
-    setCurrentUserState({
+    const resolvedOrg = resolveOrganization(user);
+    setCurrentUserState(prev => ({
+      ...prev,
       ...user,
       subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
-      title: user.role,
-      organization: 'CollabX',
-      district: 'Jharkhand',
+      title: prev.title || user.role,
+      organization: resolvedOrg,
+      district: prev.district || 'Jharkhand',
       verified: true,
-    });
+    }));
     setIsLoggedIn(true);
     setShowLandingPage(false);
   };

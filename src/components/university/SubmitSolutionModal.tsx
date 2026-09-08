@@ -28,7 +28,7 @@ export const SubmitSolutionModal: React.FC<SubmitSolutionModalProps> = ({
 }) => {
   const { currentUser } = useAuth();
 
-  const userOrg = currentUser.organization || 'Birla Institute of Technology (BIT) Mesra';
+  const userOrg = currentUser.organization?.trim() || 'Unspecified University';
   const userName = currentUser.name;
 
   const [title, setTitle] = useState(

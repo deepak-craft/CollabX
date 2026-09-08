@@ -6,14 +6,20 @@ import { TeamBuilder } from './TeamBuilder';
 import { ProfessorMentorView } from './ProfessorMentorView';
 import { SharedWorkspace } from '../project/SharedWorkspace';
 import { storageService } from '../../services/storageService';
-import { 
-  GraduationCap, 
-  Target, 
-  FileText, 
-  Users, 
-  Layers, 
+import { ProblemReport } from '../../types';
+import { SubmitSolutionModal } from './SubmitSolutionModal';
+import {
+  GraduationCap,
+  Target,
+  FileText,
+  Users,
+  Layers,
   User,
-  BookOpen
+  BookOpen,
+  Building2,
+  Send,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -30,7 +36,11 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
 
   const isProfessor = currentUser.role === 'professor';
 
+  const userOrg = currentUser.organization || 'Birla Institute of Technology (BIT) Mesra';
+  const [selectedUniversityFilter, setSelectedUniversityFilter] = useState<string>(userOrg);
+
   const getTabFromPath = () => {
+    if (location.pathname.endsWith('/matched')) return 'matched';
     if (location.pathname.endsWith('/challenges')) return 'challenges';
     if (location.pathname.endsWith('/ideas')) return 'proposals';
     if (location.pathname.endsWith('/contributions')) return 'contributions';
@@ -51,8 +61,26 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
     navigate(path);
   };
 
-  const [ideas] = useState(() => storageService.getIdeas());
+  const [ideas, setIdeas] = useState(() => storageService.getIdeas());
   const [challenges] = useState(() => storageService.getChallenges());
+  const [problems, setProblems] = useState<ProblemReport[]>(() => storageService.getProblems());
+
+  const [selectedProblemForSolution, setSelectedProblemForSolution] = useState<ProblemReport | null>(null);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
+
+  // Referred problems for current institution
+  const referredProblems = problems.filter(p => {
+    if (!p.referredUniversities || p.referredUniversities.length === 0) return false;
+    return p.referredUniversities.some(u =>
+      u.toLowerCase().includes(selectedUniversityFilter.toLowerCase()) ||
+      selectedUniversityFilter.toLowerCase().includes(u.toLowerCase())
+    );
+  });
+
+  const handleOpenSubmitModal = (prob: ProblemReport) => {
+    setSelectedProblemForSolution(prob);
+    setIsSubmitModalOpen(true);
+  };
 
   // Metrics derived from existing local data
   const activeChallengesCount = challenges.length;
@@ -102,6 +130,23 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         >
           <BookOpen className="w-4 h-4" />
           <span>{t('Dashboard', 'डैशबोर्ड')}</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('matched', '/university/matched')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'matched'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Building2 className="w-4 h-4 text-gov-saffron-amber" />
+          <span>{t('Matched Civic Problems', 'संबंधित नागरिक समस्याएं')}</span>
+          {referredProblems.length > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full text-[10px] font-bold border border-amber-300">
+              {referredProblems.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -446,6 +491,110 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
             </div>
           </div>
         </div>
+      )}
+      {/* ==================================================== */}
+      {/* TAB: MATCHED CIVIC PROBLEMS                           */}
+      {/* ==================================================== */}
+      {activeTab === 'matched' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-md border border-slate-200 p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-base font-bold text-gov-navy">
+                  Matched Civic Problems Referred to Your Institution ({referredProblems.length})
+                </h2>
+                <p className="text-xs text-slate-600">
+                  Civic problems verified by Government Experts and specifically referred to your research department.
+                </p>
+              </div>
+
+              {/* Institution Filter Selector for Demo Access Control */}
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-500 font-semibold">Active Institution View:</span>
+                <select
+                  value={selectedUniversityFilter}
+                  onChange={e => setSelectedUniversityFilter(e.target.value)}
+                  className="p-1.5 border border-slate-300 rounded font-bold text-gov-navy bg-slate-50"
+                >
+                  <option value="Birla Institute of Technology (BIT) Mesra">BIT Mesra</option>
+                  <option value="IIT (ISM) Dhanbad">IIT (ISM) Dhanbad</option>
+                  <option value="National Institute of Technology (NIT) Jamshedpur">NIT Jamshedpur</option>
+                </select>
+              </div>
+            </div>
+
+            {referredProblems.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-500 space-y-2">
+                <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-semibold text-slate-700">No civic problems currently referred to {selectedUniversityFilter}.</p>
+                <p className="text-slate-500">Government Experts refer verified problems after department matching.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {referredProblems.map((prob) => (
+                  <div
+                    key={prob.id}
+                    className="bg-slate-50 rounded-lg border border-slate-200 p-5 space-y-3 hover:border-gov-blue transition"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-xs font-bold bg-white text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                          {prob.id}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                          Referred to Your Institution
+                        </span>
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-gov-blue font-semibold">
+                        {prob.aiAnalysis.category}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-gov-navy">{prob.title}</h3>
+                      <p className="text-xs text-slate-700 leading-relaxed mt-1">{prob.description}</p>
+                    </div>
+
+                    <div className="p-3 bg-white rounded border border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-slate-500 font-semibold">Verified Nodal Officer:</span>{' '}
+                        <strong className="text-slate-800">{prob.verifiedBy || 'Alok Prasad, IAS'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-semibold">District:</span>{' '}
+                        <strong className="text-slate-800">{prob.district} ({prob.panchayatOrLocality})</strong>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-end">
+                      <button
+                        onClick={() => handleOpenSubmitModal(prob)}
+                        className="px-4 py-2 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold text-xs flex items-center space-x-1.5 shadow-sm"
+                      >
+                        <Send className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                        <span>View Problem & Submit Solution Proposal →</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Submit Solution Modal */}
+      {selectedProblemForSolution && (
+        <SubmitSolutionModal
+          problem={selectedProblemForSolution}
+          isOpen={isSubmitModalOpen}
+          onClose={() => setIsSubmitModalOpen(false)}
+          onSubmitted={() => {
+            setIdeas(storageService.getIdeas());
+            setProblems(storageService.getProblems());
+            handleTabChange('proposals', '/university/ideas');
+          }}
+        />
       )}
     </div>
   );

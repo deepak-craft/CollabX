@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
@@ -39,8 +39,33 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [notifications, setNotifications] = useState(() => storageService.getNotifications());
   const [searchTerm, setSearchTerm] = useState('');
+
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+      }
+    };
+
+    if (isProfileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProfileOpen]);
 
   const isPublicAuthRoute = 
     location.pathname === '/' || 
@@ -224,14 +249,18 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                 />
               </div>
 
-              {/* Persona Profile Switcher */}
-              <div className="relative">
+              {/* Persona Profile Switcher & Dropdown */}
+              <div className="relative" ref={profileMenuRef}>
                 <button
-                  onClick={() => navigate('/')} 
-                  className="flex items-center space-x-2 p-1.5 border border-gov-border rounded-lg hover:bg-slate-50 transition text-left focus:ring-2 focus:ring-gov-blue"
+                  type="button"
+                  onClick={() => setIsProfileOpen(prev => !prev)}
+                  aria-expanded={isProfileOpen}
+                  aria-haspopup="true"
+                  aria-label="User Account Menu"
+                  className="flex items-center space-x-2 p-1.5 border border-gov-border rounded-lg hover:bg-slate-50 transition text-left focus:outline-none focus:ring-2 focus:ring-gov-blue cursor-pointer"
                 >
                   <div className="w-8 h-8 rounded-full bg-gov-navy text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
-                    {currentUser.name.charAt(0)}
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div className="hidden md:block">
                     <div className="text-xs font-bold text-gov-navy flex items-center space-x-1">
@@ -249,19 +278,71 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                       </span>
                     </div>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-500 hidden sm:block" />
+                  <ChevronDown className={`w-4 h-4 text-slate-500 hidden sm:block transition-transform duration-150 ${isProfileOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate('/');
-                  }}
-                  className="absolute right-0 mt-2 text-xs text-red-600 hover:text-red-800 font-medium flex items-center space-x-1 p-2 rounded bg-white border border-slate-200 shadow-gov"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>{t('Sign out', 'लॉग आउट')}</span>
-                </button>
+                {isProfileOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-4 space-y-3"
+                    role="menu"
+                    aria-orientation="vertical"
+                  >
+                    {/* User Details Header */}
+                    <div className="border-b border-slate-100 pb-3 space-y-1.5 text-left">
+                      <div className="text-xs font-bold text-gov-navy uppercase tracking-wider">
+                        {currentUser.role === 'citizen' ? 'Citizen Account' : `${currentUser.subRole || currentUser.role} Account`}
+                      </div>
+                      {currentUser.name && (
+                        <div className="text-xs font-bold text-slate-900 truncate">
+                          {currentUser.name}
+                        </div>
+                      )}
+                      <div className="text-[11px] text-slate-600 font-mono truncate">
+                        <span className="font-semibold text-slate-500">Identifier: </span>
+                        {(currentUser as any).phone || currentUser.email || 'N/A'}
+                      </div>
+                      <div className="text-[11px] text-slate-600">
+                        <span className="font-semibold text-slate-500">Account Type: </span>
+                        <span className="font-bold text-gov-navy capitalize">{currentUser.subRole || currentUser.role}</span>
+                      </div>
+                    </div>
+
+                    {/* Menu Actions */}
+                    <div className="space-y-1 font-medium text-xs">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          const profilePath = currentUser.role === 'citizen' ? '/citizen/profile' :
+                                              currentUser.role === 'student' || currentUser.role === 'professor' ? '/university' :
+                                              currentUser.role === 'industry' ? '/industry' :
+                                              currentUser.role === 'government' ? '/government' :
+                                              currentUser.role === 'expert' ? '/expert' : '/citizen/profile';
+                          navigate(profilePath);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-slate-700 hover:text-gov-navy flex items-center space-x-2 transition cursor-pointer font-bold"
+                      >
+                        <UserCheck className="w-4 h-4 text-gov-blue" />
+                        <span>Profile</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          logout();
+                          navigate('/login');
+                        }}
+                        className="w-full text-left px-3 py-2 rounded hover:bg-red-50 text-red-600 hover:text-red-700 flex items-center space-x-2 transition cursor-pointer font-bold"
+                      >
+                        <LogOut className="w-4 h-4 text-red-600" />
+                        <span>{t('Sign out', 'लॉग आउट')}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

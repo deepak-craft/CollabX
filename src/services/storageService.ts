@@ -118,6 +118,27 @@ class StorageService {
     this.setItem(STORAGE_KEYS.PROBLEMS, problems);
   }
 
+  referProblemToUniversities(problemId: string, universityNames: string[]): void {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.referredUniversities = universityNames;
+      problem.status = 'matching_universities';
+      this.saveProblem(problem);
+    }
+  }
+
+  getReferredProblemsForUniversity(universityName: string): ProblemReport[] {
+    const problems = this.getProblems();
+    return problems.filter(p => {
+      if (!p.referredUniversities || p.referredUniversities.length === 0) return false;
+      return p.referredUniversities.some(u =>
+        u.toLowerCase().includes(universityName.toLowerCase()) ||
+        universityName.toLowerCase().includes(u.toLowerCase())
+      );
+    });
+  }
+
   // Challenges
   getChallenges(): Challenge[] {
     return this.getItem<Challenge[]>(STORAGE_KEYS.CHALLENGES, INITIAL_CHALLENGES);
@@ -134,7 +155,7 @@ class StorageService {
     this.setItem(STORAGE_KEYS.CHALLENGES, challenges);
   }
 
-  // Ideas
+  // Ideas / Solution Proposals
   getIdeas(): IdeaProposal[] {
     return this.getItem<IdeaProposal[]>(STORAGE_KEYS.IDEAS, INITIAL_IDEAS);
   }
@@ -148,6 +169,48 @@ class StorageService {
       ideas.unshift(idea);
     }
     this.setItem(STORAGE_KEYS.IDEAS, ideas);
+  }
+
+  submitSolutionForProblem(proposal: IdeaProposal, problemId: string): void {
+    proposal.problemId = problemId;
+    this.saveIdea(proposal);
+
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.status = 'solution_submitted';
+      this.saveProblem(problem);
+    }
+  }
+
+  selectSolutionForProblem(problemId: string, solutionId: string): void {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.selectedSolutionId = solutionId;
+      problem.status = 'solution_selected';
+      this.saveProblem(problem);
+    }
+
+    const ideas = this.getIdeas();
+    const idea = ideas.find(i => i.id === solutionId);
+    if (idea) {
+      idea.status = 'selected';
+      this.saveIdea(idea);
+    }
+  }
+
+  submitIndustrySupportOffer(problemId: string, offer: any): void {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.status = 'industry_support';
+      if (!problem.industrySupportOffers) {
+        problem.industrySupportOffers = [];
+      }
+      problem.industrySupportOffers.unshift(offer);
+      this.saveProblem(problem);
+    }
   }
 
   // Industry Partners

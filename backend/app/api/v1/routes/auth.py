@@ -18,7 +18,14 @@ from sqlalchemy.orm import Session
 from app.api.v1.routes.reports import get_db
 from app.core.config import settings
 from app.core.security import create_access_token, get_current_user
-from app.schemas.auth import OTPRequest, OTPVerifyRequest, OTPResponse, TokenResponse
+from app.schemas.auth import (
+    OTPRequest,
+    OTPResponse,
+    OTPVerifyRequest,
+    TokenResponse,
+    UserRegisterRequest,
+    UserRegisterResponse,
+)
 from app.models.normalized import User
 from app.models.otp_challenge import OtpChallenge
 
@@ -90,6 +97,37 @@ def _deliver_otp(identifier: str, otp: str, expires_at: datetime) -> None:
                 raise RuntimeError("OTP provider rejected the delivery request")
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="OTP delivery provider is unavailable") from exc
+
+
+@router.post("/register", response_model=UserRegisterResponse, status_code=status.HTTP_201_CREATED)
+async def register(payload: UserRegisterRequest, db: Session = Depends(get_db)) -> UserRegisterResponse:
+    identifier = payload.identifier.strip()
+    existing = db.scalar(select(User).where(User.email == identifier, User.role == payload.role))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this mobile number or email already exists for this role.",
+        )
+
+    timestamp = datetime.now(timezone.utc)
+    user = User(
+        id=f"user-{uuid4().hex}",
+        name=payload.name.strip(),
+        email=identifier,
+        role=payload.role,
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return UserRegisterResponse(
+        user_id=user.id,
+        name=user.name,
+        email=user.email or identifier,
+        role=user.role,  # type: ignore[arg-type]
+        message="Account registered successfully. You can now log in.",
+    )
 
 
 @router.post("/request-otp", response_model=OTPResponse)

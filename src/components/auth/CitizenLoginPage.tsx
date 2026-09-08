@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Phone, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 import { OtpInput } from './OtpInput';
+import { DemoOtpNotice } from './DemoOtpNotice';
 import { collabxApi } from '../../services/collabxApi';
 
 export const CitizenLoginPage: React.FC = () => {
@@ -301,6 +302,8 @@ export const CitizenLoginPage: React.FC = () => {
                 />
               </div>
 
+              <DemoOtpNotice />
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -317,7 +320,7 @@ export const CitizenLoginPage: React.FC = () => {
           New to CollabX?{' '}
           <button
             type="button"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/register?role=citizen')}
             className="font-bold text-gov-blue hover:underline focus:outline-none"
           >
             Register

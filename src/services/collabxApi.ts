@@ -127,7 +127,22 @@ export type ApiProblemPayload = {
   has_voice_note?: boolean;
 };
 
+export interface RegisterResponse {
+  user_id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  message: string;
+}
+
 export const collabxApi = {
+  registerUser(name: string, identifier: string, role: UserRole): Promise<RegisterResponse> {
+    return apiRequest<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, identifier, role }),
+    });
+  },
+
   requestOtp(identifier: string, role: UserRole, name?: string): Promise<OtpResponse> {
     return apiRequest<OtpResponse>('/auth/request-otp', {
       method: 'POST',

@@ -9,6 +9,7 @@ import { CitizenLoginPage } from './components/auth/CitizenLoginPage';
 import { UniversityLoginPage } from './components/auth/UniversityLoginPage';
 import { IndustryLoginPage } from './components/auth/IndustryLoginPage';
 import { RestrictedAccessPage } from './components/auth/RestrictedAccessPage';
+import { RegisterPage } from './components/auth/RegisterPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 import { PublicServicesPage } from './components/public/PublicServicesPage';
@@ -61,6 +62,7 @@ const MainAppContent: React.FC = () => {
           <Route path="/login/industry" element={<IndustryLoginPage />} />
           <Route path="/login/government" element={<RestrictedAccessPage />} />
           <Route path="/login/restricted" element={<RestrictedAccessPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
           {/* Protected Citizen Routes */}
           <Route

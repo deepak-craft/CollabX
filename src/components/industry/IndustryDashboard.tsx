@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { storageService } from '../../services/storageService';
-import { Challenge, CollaborationOffer, IndustryPartner } from '../../types';
+import { Challenge, CollaborationOffer, IndustryPartner, ProblemReport, IdeaProposal } from '../../types';
 import { OfferSupportModal } from './OfferSupportModal';
+import { SubmitSupportOfferModal } from './SubmitSupportOfferModal';
 import { SharedWorkspace } from '../project/SharedWorkspace';
 import { 
   Building, 
@@ -11,7 +12,10 @@ import {
   Layers, 
   User,
   Search,
-  FileText
+  FileText,
+  Sparkles,
+  Send,
+  CheckCircle2
 } from 'lucide-react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -23,6 +27,7 @@ export const IndustryDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const getTabFromPath = () => {
+    if (location.pathname.endsWith('/seeking-support')) return 'seeking_support';
     if (location.pathname.endsWith('/opportunities')) return 'opportunities';
     if (location.pathname.endsWith('/collaborations') || location.pathname.endsWith('/contributions')) return 'contributions';
     if (location.pathname.endsWith('/projects')) return 'projects';
@@ -44,9 +49,26 @@ export const IndustryDashboard: React.FC = () => {
 
   const [challenges] = useState<Challenge[]>(() => storageService.getChallenges());
   const [collaborations, setCollaborations] = useState<CollaborationOffer[]>(() => storageService.getCollaborations());
+  const [problems, setProblems] = useState<ProblemReport[]>(() => storageService.getProblems());
+  const [ideas, setIdeas] = useState<IdeaProposal[]>(() => storageService.getIdeas());
+
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState<boolean>(false);
+
+  const [selectedProblemForSupport, setSelectedProblemForSupport] = useState<ProblemReport | null>(null);
+  const [selectedSolutionForSupport, setSelectedSolutionForSupport] = useState<IdeaProposal | null>(null);
+  const [isSupportOfferModalOpen, setIsSupportOfferModalOpen] = useState<boolean>(false);
+
   const partnerProfile: IndustryPartner = storageService.getIndustryPartners()[0];
+
+  // Problems seeking industry support
+  const seekingSupportProblems = problems.filter(p => p.status === 'industry_support' || (p.status === 'solution_selected' && p.selectedSolutionId));
+
+  const handleOpenSupportOffer = (prob: ProblemReport, sol: IdeaProposal) => {
+    setSelectedProblemForSupport(prob);
+    setSelectedSolutionForSupport(sol);
+    setIsSupportOfferModalOpen(true);
+  };
 
   const availableChallengesCount = challenges.length;
   const myContributionsCount = collaborations.length;
@@ -121,6 +143,23 @@ export const IndustryDashboard: React.FC = () => {
         >
           <Building className="w-4 h-4" />
           <span>{t('Dashboard', 'डैशबोर्ड')}</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('seeking_support', '/industry/seeking-support')}
+          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
+            activeTab === 'seeking_support'
+              ? 'bg-gov-navy text-white'
+              : 'text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-gov-saffron-amber" />
+          <span>{t('Solutions Seeking Support', 'सहायता हेतु चयनित समाधान')}</span>
+          {seekingSupportProblems.length > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full text-[10px] font-bold border border-amber-300">
+              {seekingSupportProblems.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -535,6 +574,124 @@ export const IndustryDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* ==================================================== */}
+      {/* TAB: SOLUTIONS SEEKING INDUSTRY SUPPORT              */}
+      {/* ==================================================== */}
+      {activeTab === 'seeking_support' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-md border border-slate-200 p-5 space-y-3">
+            <div className="border-b border-slate-200 pb-3">
+              <h2 className="text-base font-bold text-gov-navy">
+                Government-Selected Solutions Seeking Industry Support ({seekingSupportProblems.length})
+              </h2>
+              <p className="text-xs text-slate-600">
+                These solutions have been evaluated and selected by Government Experts and are actively seeking CSR hardware, equipment, lab testing, or technical support.
+              </p>
+            </div>
+
+            {seekingSupportProblems.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-500 space-y-2">
+                <Sparkles className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-semibold text-slate-700">No government-selected solutions currently seeking industry support.</p>
+                <p className="text-slate-500">Government Experts expose selected university solutions after technical evaluation.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {seekingSupportProblems.map(prob => {
+                  const selSolution = ideas.find(i => i.id === prob.selectedSolutionId || i.status === 'selected') || ideas[0];
+                  const existingSupportOffers = prob.industrySupportOffers || [];
+
+                  return (
+                    <div
+                      key={prob.id}
+                      className="bg-slate-50 rounded-lg border border-slate-200 p-5 space-y-4 hover:border-gov-blue transition"
+                    >
+                      {/* Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-xs font-bold bg-white text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                            {prob.id}
+                          </span>
+                          <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                            Government Selected Solution
+                          </span>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-gov-blue font-semibold">
+                          {prob.aiAnalysis.category}
+                        </span>
+                      </div>
+
+                      {/* Original Civic Problem */}
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block mb-0.5">Original Civic Problem Statement:</span>
+                        <h3 className="text-sm font-bold text-gov-navy">{prob.title}</h3>
+                        <p className="text-xs text-slate-600 line-clamp-2 mt-0.5">{prob.description}</p>
+                      </div>
+
+                      {/* Selected Solution Card */}
+                      {selSolution && (
+                        <div className="p-4 bg-white rounded-lg border border-emerald-300 space-y-2 text-xs">
+                          <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                            <div>
+                              <span className="font-bold text-emerald-950 text-sm">{selSolution.title}</span>
+                              <div className="text-slate-600 text-[11px]">
+                                University: <strong>{selSolution.university}</strong> | Team: <strong>{selSolution.teamName}</strong>
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-900 font-bold rounded text-[10px]">
+                              Nodal Officer Selected
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="font-bold text-slate-700 block text-[10px] uppercase">Technical Solution Overview:</span>
+                            <p className="text-slate-700 leading-relaxed mt-0.5">{selSolution.proposedSolution}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Existing Support Offers for this problem */}
+                      {existingSupportOffers.length > 0 && (
+                        <div className="p-3 bg-amber-50 rounded border border-amber-200 space-y-1 text-xs">
+                          <span className="font-bold text-amber-950 block">Received Industry Support Offers ({existingSupportOffers.length}):</span>
+                          {existingSupportOffers.map(off => (
+                            <div key={off.id} className="flex items-center justify-between bg-white p-2 rounded border border-amber-200 text-[11px]">
+                              <div>
+                                <strong className="text-slate-900">{off.industryName}</strong> offered <em>{off.supportTypes.join(', ')}</em>
+                              </div>
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-bold rounded text-[10px]">
+                                {off.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                        <span className="text-slate-500">
+                          District: <strong className="text-slate-800">{prob.district}</strong>
+                        </span>
+
+                        {selSolution && (
+                          <button
+                            onClick={() => handleOpenSupportOffer(prob, selSolution)}
+                            className="px-4 py-2 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold flex items-center space-x-1.5 shadow-sm"
+                          >
+                            <Send className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                            <span>Offer Industry Support →</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Offer Support Modal */}
       {selectedChallenge && (
         <OfferSupportModal
@@ -542,6 +699,21 @@ export const IndustryDashboard: React.FC = () => {
           isOpen={isOfferModalOpen}
           onClose={() => setIsOfferModalOpen(false)}
           onSubmitted={handleOfferSubmitted}
+        />
+      )}
+
+      {/* Submit Support Offer Modal */}
+      {selectedProblemForSupport && selectedSolutionForSupport && (
+        <SubmitSupportOfferModal
+          problem={selectedProblemForSupport}
+          selectedSolution={selectedSolutionForSupport}
+          isOpen={isSupportOfferModalOpen}
+          onClose={() => setIsSupportOfferModalOpen(false)}
+          onSubmitted={() => {
+            setProblems(storageService.getProblems());
+            setCollaborations(storageService.getCollaborations());
+            handleTabChange('contributions', '/industry/collaborations');
+          }}
         />
       )}
     </div>

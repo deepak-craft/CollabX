@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Briefcase, AlertCircle, ArrowLeft } from 'lucide-react';
 import { OtpInput } from './OtpInput';
+import { DemoOtpNotice } from './DemoOtpNotice';
 import { collabxApi } from '../../services/collabxApi';
 
 export const IndustryLoginPage: React.FC = () => {
@@ -212,6 +213,7 @@ export const IndustryLoginPage: React.FC = () => {
                 length={6}
                 disabled={isSubmitting}
               />
+              <DemoOtpNotice />
             </div>
           )}
 
@@ -223,6 +225,17 @@ export const IndustryLoginPage: React.FC = () => {
             {isSubmitting ? 'Processing...' : otpSent ? 'Verify OTP' : 'Send OTP'}
           </button>
         </form>
+
+        <div className="pt-2 text-center text-xs text-slate-600">
+          New to CollabX?{' '}
+          <button
+            type="button"
+            onClick={() => navigate('/register?role=industry')}
+            className="font-bold text-gov-blue hover:underline focus:outline-none"
+          >
+            Register
+          </button>
+        </div>
 
         <div className="pt-4 border-t border-slate-100 text-center">
           <Link to="/login" className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition">

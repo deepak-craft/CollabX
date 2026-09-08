@@ -121,6 +121,17 @@ export const LoginSelectionPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Global Registration Banner */}
+      <div className="text-center text-xs text-slate-600 font-medium pt-2">
+        New to CollabX?{' '}
+        <button
+          onClick={() => navigate('/register')}
+          className="font-bold text-gov-blue hover:underline focus:outline-none"
+        >
+          Create your CollabX Account →
+        </button>
+      </div>
     </div>
   );
 };

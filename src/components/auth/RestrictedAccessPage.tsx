@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { collabxApi } from '../../services/collabxApi';
+import { DemoOtpNotice } from './DemoOtpNotice';
 import { Shield, Building2, Lock, AlertCircle, Key, Award } from 'lucide-react';
 
 export const RestrictedAccessPage: React.FC = () => {
@@ -164,6 +165,8 @@ export const RestrictedAccessPage: React.FC = () => {
               </div>
             </div>
 
+            {otpSent && <DemoOtpNotice />}
+
             <button
               type="submit"
               disabled={isVerifying}
@@ -174,6 +177,18 @@ export const RestrictedAccessPage: React.FC = () => {
               <span>{isVerifying ? 'Authenticating Credentials...' : otpSent ? 'Verify OTP & Enter' : 'Send OTP'}</span>
             </button>
           </form>
+
+          {/* Registration Prompt */}
+          <div className="pt-2 text-center text-xs text-slate-600">
+            New to CollabX?{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/register?role=government')}
+              className="font-bold text-gov-blue hover:underline focus:outline-none"
+            >
+              Register
+            </button>
+          </div>
 
           {/* Back link */}
           <div className="pt-3 border-t border-slate-100 flex items-center justify-center text-xs">

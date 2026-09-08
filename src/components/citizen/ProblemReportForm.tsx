@@ -175,9 +175,8 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
   // 2. CAMERA CAPTURE (getUserMedia Video Stream)
   // ====================================================
   const [cameraActive, setCameraActive] = useState(false);
-  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(
-    'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80'
-  );
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
+  const [photoSource, setPhotoSource] = useState<'upload' | 'camera' | 'sample' | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [usingDemoImage, setUsingDemoImage] = useState(false);
 
@@ -219,6 +218,8 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setCapturedPhotoUrl(dataUrl);
+        setPhotoSource('camera');
+        setUsingDemoImage(false);
       }
     }
     stopCamera();
@@ -237,6 +238,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       const file = e.target.files[0];
       const url = URL.createObjectURL(file);
       setCapturedPhotoUrl(url);
+      setPhotoSource('upload');
       setUsingDemoImage(false);
     }
   };
@@ -244,6 +246,7 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
   const handleUseDemoImage = () => {
     stopCamera();
     setCapturedPhotoUrl('https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=600&q=80');
+    setPhotoSource('sample');
     setUsingDemoImage(true);
   };
 
@@ -601,7 +604,15 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
             </div>
           )}
 
-          {/* Captured Photo Display */}
+          {/* Empty Photo State */}
+          {!capturedPhotoUrl && !cameraActive && (
+            <div className="p-3 bg-white rounded border border-dashed border-slate-300 text-xs text-slate-500 text-center space-y-0.5">
+              <div className="font-semibold text-slate-700">No photo attached yet.</div>
+              <div className="text-[11px] text-slate-500">Capture a photo or upload an image as evidence.</div>
+            </div>
+          )}
+
+          {/* Captured / Attached Photo Display */}
           {capturedPhotoUrl && !cameraActive && (
             <div className="flex items-center space-x-3 p-2.5 bg-white rounded border border-slate-300">
               <img
@@ -615,11 +626,19 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
                   <span>Photo Evidence Attached</span>
                 </div>
                 <div className="text-[11px] text-slate-500 font-mono">
-                  {usingDemoImage ? 'Preset Image Applied' : 'Frame Captured from Browser Media Stream'}
+                  {photoSource === 'upload'
+                    ? 'Photo uploaded from device'
+                    : photoSource === 'camera'
+                    ? 'Frame Captured from Browser Media Stream'
+                    : 'Sample / Demo Image Attached'}
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCapturedPhotoUrl(null)}
+                  onClick={() => {
+                    setCapturedPhotoUrl(null);
+                    setUsingDemoImage(false);
+                    setPhotoSource(null);
+                  }}
                   className="text-[11px] text-red-600 hover:underline font-semibold"
                 >
                   Remove Photo

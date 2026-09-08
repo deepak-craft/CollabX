@@ -21,11 +21,38 @@ export type ProblemStatus =
   | 'ai_analyzed' 
   | 'under_review' 
   | 'verified' 
+  | 'matching_universities'
+  | 'university_review'
+  | 'solution_submitted'
+  | 'solution_under_evaluation'
+  | 'solution_selected'
+  | 'industry_support'
   | 'challenge_created' 
   | 'in_project' 
   | 'pilot_deployed' 
   | 'impact_measured' 
   | 'rejected';
+
+export interface UniversityMatch {
+  universityId: string;
+  name: string;
+  domain: string;
+  department: string;
+  matchScoreLabel: 'Strong Match' | 'Relevant Expertise' | 'Potential Match';
+  relevanceReason: string;
+}
+
+export interface IndustrySupportOffer {
+  id: string;
+  problemId: string;
+  selectedSolutionId: string;
+  industryName: string;
+  contactPerson: string;
+  supportTypes: SupportType[];
+  description: string;
+  status: 'Support Offer Submitted' | 'accepted' | 'declined';
+  requestedAt: string;
+}
 
 export interface AIProblemAnalysis {
   category: string;
@@ -62,6 +89,9 @@ export interface ProblemReport {
   verifiedBy?: string;
   verificationNotes?: string;
   challengeId?: string;
+  referredUniversities?: string[];
+  selectedSolutionId?: string;
+  industrySupportOffers?: IndustrySupportOffer[];
 }
 
 export type SupportStatus = 'Confirmed Funding' | 'Support Available' | 'Not Allocated';
@@ -102,6 +132,7 @@ export interface AIScores {
 export interface IdeaProposal {
   id: string;
   challengeId: string;
+  problemId?: string;
   title: string;
   teamName: string;
   university: string;

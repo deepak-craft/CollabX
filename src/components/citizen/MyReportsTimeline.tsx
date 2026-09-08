@@ -14,10 +14,13 @@ interface MyReportsTimelineProps {
 }
 
 const GOV_STAGES = [
-  { id: 'submitted', label: '1. Submitted', desc: 'Received in portal' },
-  { id: 'under_review', label: '2. Under Review', desc: 'Departmental assessment' },
-  { id: 'action_initiated', label: '3. Action Initiated', desc: 'Field team / pilot assigned' },
-  { id: 'resolved', label: '4. Resolved', desc: 'Verified on ground' },
+  { id: 'submitted', label: '1. Problem Reported', desc: 'Received in portal' },
+  { id: 'verified', label: '2. Problem Verified', desc: 'Ground check approved' },
+  { id: 'university_review', label: '3. Under University Review', desc: 'Referred to research labs' },
+  { id: 'solution_evaluation', label: '4. Solution Under Evaluation', desc: 'Govt evaluating solution' },
+  { id: 'industry_support', label: '5. Industry Support', desc: 'CSR & tech partners engaged' },
+  { id: 'action_initiated', label: '6. Action Initiated', desc: 'On-ground pilot active' },
+  { id: 'resolved', label: '7. Resolved', desc: 'Verified civic relief' },
 ];
 
 export const MyReportsTimeline: React.FC<MyReportsTimelineProps> = ({
@@ -30,19 +33,28 @@ export const MyReportsTimeline: React.FC<MyReportsTimelineProps> = ({
     switch (status) {
       case 'submitted': 
       case 'ai_analyzed': 
+      case 'under_review':
         return 0;
-      case 'under_review': 
-        return 1;
       case 'verified': 
+        return 1;
+      case 'matching_universities':
+      case 'university_review':
+        return 2;
+      case 'solution_submitted':
+      case 'solution_under_evaluation':
+      case 'solution_selected':
+        return 3;
+      case 'industry_support':
+        return 4;
       case 'challenge_created': 
       case 'in_project': 
       case 'pilot_deployed': 
-        return 2;
+        return 5;
       case 'impact_measured': 
       case 'resolved': 
-        return 3;
+        return 6;
       default: 
-        return 2;
+        return 1;
     }
   };
 
@@ -112,7 +124,7 @@ export const MyReportsTimeline: React.FC<MyReportsTimelineProps> = ({
                   {t('Official Status Progression:', 'आधिकारिक स्थिति प्रगति:')}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                   {GOV_STAGES.map((stage, idx) => {
                     const isCompleted = idx < currentStageIdx;
                     const isCurrent = idx === currentStageIdx;

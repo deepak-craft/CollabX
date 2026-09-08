@@ -57,3 +57,17 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user_id: str
     role: AuthRole
+
+
+class UserRegisterRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=180)
+    identifier: str = Field(..., min_length=3, max_length=255)
+    role: AuthRole
+
+
+class UserRegisterResponse(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    role: AuthRole
+    message: str = "Account registered successfully"

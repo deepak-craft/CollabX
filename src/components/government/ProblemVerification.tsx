@@ -4,6 +4,8 @@ import { storageService } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
 import { CreateChallengeModal } from './CreateChallengeModal';
+import { UniversityMatchingView } from './UniversityMatchingView';
+import { SolutionEvaluationView } from './SolutionEvaluationView';
 import { 
   ShieldCheck, 
   MapPin, 
@@ -35,6 +37,8 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
     'Ground inspection conducted with Municipal Ward 14 engineers. Hydraulic bottleneck and culvert slope deficit confirmed. Suitable for open research challenge.'
   );
 
+  const [viewMode, setViewMode] = useState<'queue' | 'match' | 'evaluate'>('queue');
+
   const handleVerify = (problem: ProblemReport) => {
     problem.status = 'verified';
     problem.verifiedBy = `${currentUser.name} (${currentUser.title})`;
@@ -64,7 +68,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
       targetRole: 'citizen',
     });
 
-    alert(`Grievance ${problem.id} successfully verified! You can now convert it into an Open Challenge.`);
+    setViewMode('match');
   };
 
   const handleReject = (problem: ProblemReport) => {
@@ -96,6 +100,30 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
     alert(`Information request notice sent to citizen ${problem.citizenName}.`);
   };
 
+  if (viewMode === 'match' && selectedProblem) {
+    return (
+      <UniversityMatchingView
+        problem={selectedProblem}
+        onBack={() => setViewMode('queue')}
+        onSuccess={() => {
+          setProblems([...storageService.getProblems()]);
+        }}
+      />
+    );
+  }
+
+  if (viewMode === 'evaluate' && selectedProblem) {
+    return (
+      <SolutionEvaluationView
+        problem={selectedProblem}
+        onBack={() => setViewMode('queue')}
+        onUpdated={() => {
+          setProblems([...storageService.getProblems()]);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov">
@@ -104,7 +132,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
           <span>{t('Government Grievance Verification Queue', 'सरकारी समस्या सत्यापन कतार')}</span>
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Review citizen reports, evidence photos, AI categorization, and duplicate similarity before publishing Open Challenges.
+          Review citizen reports, evidence photos, AI categorization, and duplicate similarity before university referral or open challenge creation.
         </p>
       </div>
 
@@ -183,7 +211,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
 
               <span
                 className={`text-xs px-2.5 py-1 rounded font-bold uppercase ${
-                  selectedProblem.status === 'verified'
+                  selectedProblem.status === 'verified' || selectedProblem.status === 'matching_universities'
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                     : 'bg-blue-100 text-gov-blue border border-blue-200'
                 }`}
@@ -339,14 +367,32 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
                 </button>
               </div>
 
-              {/* Convert to Open Challenge Button */}
-              <button
-                onClick={() => setIsChallengeModalOpen(true)}
-                className="px-4 py-1.5 bg-gov-navy hover:bg-gov-navy-dark text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
-              >
-                <Target className="w-3.5 h-3.5 text-gov-saffron-amber" />
-                <span>Create Open Challenge →</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setViewMode('match')}
+                  className="px-3.5 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
+                >
+                  <Users className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                  <span>Find Suitable Universities →</span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode('evaluate')}
+                  className="px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Evaluate Solutions</span>
+                </button>
+
+                {/* Secondary Option: Open Challenge */}
+                <button
+                  onClick={() => setIsChallengeModalOpen(true)}
+                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded text-xs font-semibold flex items-center space-x-1 transition"
+                >
+                  <Target className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Open Challenge</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

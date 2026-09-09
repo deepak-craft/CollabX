@@ -1,74 +1,68 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { GraduationCap, AlertCircle, ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Lock } from 'lucide-react';
 import { OtpInput } from './OtpInput';
 import { DemoOtpNotice } from './DemoOtpNotice';
 import { collabxApi } from '../../services/collabxApi';
+
+interface InstitutionProfile {
+  name: string;
+  representative: string;
+  email: string;
+  phone: string;
+}
+
+const INSTITUTIONS: InstitutionProfile[] = [
+  {
+    name: 'Birla Institute of Technology (BIT) Mesra',
+    representative: 'University Representative',
+    email: 'demo@bitmesra.ac.in',
+    phone: '+91 98765 43210',
+  },
+  {
+    name: 'IIT (ISM) Dhanbad',
+    representative: 'University Representative',
+    email: 'demo@iitism.ac.in',
+    phone: '+91 98765 43210',
+  },
+  {
+    name: 'National Institute of Technology (NIT) Jamshedpur',
+    representative: 'University Representative',
+    email: 'demo@nitjsr.ac.in',
+    phone: '+91 98765 43210',
+  },
+];
 
 export const UniversityLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [academicRole, setAcademicRole] = useState<'student' | 'professor'>('student');
-  const [universityEmail, setUniversityEmail] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [challengeId, setChallengeId] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedInstitutionName, setSelectedInstitutionName] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [challengeId, setChallengeId] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const isInstitutionalEmail = (emailStr: string): boolean => {
-    const lower = emailStr.toLowerCase().trim();
-    const institutionalTLDs = ['.edu', '.edu.in', '.ac.in', '.res.in', 'college.in', 'university.ac.in'];
-    
-    if (/@(gmail|yahoo|hotmail|outlook|live|icloud|rediffmail)\./i.test(lower)) {
-      return false;
-    }
-
-    return institutionalTLDs.some(tld => lower.endsWith(tld)) || /@[a-z0-9-]+\.(ac|edu)\.[a-z]{2,3}$/i.test(lower);
-  };
-
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setMobileNumber(digitsOnly);
-    if (error) setError('');
-  };
-
-  const validateInputs = (): boolean => {
-    setError('');
-
-    if (!universityEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(universityEmail)) {
-      setError('Please enter a valid email address.');
-      return false;
-    }
-
-    if (!isInstitutionalEmail(universityEmail)) {
-      setError('Invalid University Email: Please use your official institutional / college email address ending in .ac.in, .edu, or .edu.in.');
-      return false;
-    }
-
-    if (!mobileNumber || !/^[6-9]\d{9}$/.test(mobileNumber)) {
-      setError('Please enter a valid 10-digit Indian mobile number.');
-      return false;
-    }
-
-    if (otpSent && otp.length !== 6) {
-      setError('Please enter the complete 6-digit verification OTP.');
-      return false;
-    }
-
-    return true;
-  };
+  const selectedProfile = INSTITUTIONS.find((inst) => inst.name === selectedInstitutionName);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) return;
+    setError('');
+
+    if (!selectedInstitutionName || !selectedProfile) {
+      setError('Please select your institution to proceed.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const response = await collabxApi.requestOtp(universityEmail, academicRole);
+      const response = await collabxApi.requestOtp(
+        selectedProfile.email,
+        'professor',
+        selectedProfile.representative
+      );
       setChallengeId(response.challenge_id);
       setIsSubmitting(false);
       setOtpSent(true);
@@ -79,9 +73,14 @@ export const UniversityLoginPage: React.FC = () => {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) return;
+    setError('');
+
+    if (!otp || otp.length !== 6) {
+      setError('Please enter the 6-digit verification OTP.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -95,90 +94,111 @@ export const UniversityLoginPage: React.FC = () => {
   };
 
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-center max-w-md mx-auto w-full">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md space-y-2 text-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center justify-center gap-2">
-          <GraduationCap className="w-6 h-6 text-gov-blue" />
-          University / Research Login
+    <div className="py-10 px-4 sm:px-6 flex flex-col items-center justify-center min-h-[75vh] bg-slate-50">
+      {/* Header Branding */}
+      <div className="text-center space-y-1 mb-6 max-w-md w-full">
+        <div className="text-xs font-bold text-gov-navy uppercase tracking-widest">COLLABX</div>
+        <div className="text-xs text-slate-500 font-medium">Collaborative Civic Innovation</div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight pt-3">
+          UNIVERSITY LOGIN
         </h1>
+        <p className="text-xs sm:text-sm text-slate-600">
+          Access your institution's civic workspace
+        </p>
       </div>
 
-      <div className="bg-white p-6 sm:p-8 shadow-sm rounded-xl border border-slate-200 space-y-6">
-        {/* Academic Role Selector */}
-        <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setAcademicRole('student')}
-            className={`flex-1 py-2 text-center rounded-md transition ${
-              academicRole === 'student' ? 'bg-white text-gov-navy shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Student Innovator
-          </button>
-          <button
-            type="button"
-            onClick={() => setAcademicRole('professor')}
-            className={`flex-1 py-2 text-center rounded-md transition ${
-              academicRole === 'professor' ? 'bg-white text-gov-navy shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Faculty Advisor
-          </button>
-        </div>
-
+      {/* Main Government Portal Card */}
+      <div className="bg-white p-6 sm:p-7 rounded-lg border border-slate-300 shadow-sm w-full max-w-md space-y-5">
         {error && (
-          <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-700 flex items-center space-x-2">
+          <div
+            role="alert"
+            className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center space-x-2"
+          >
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={otpSent ? handleLogin : handleSendOtp} className="space-y-4">
+        <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="space-y-4">
+          {/* Institution Dropdown */}
           <div>
-            <label htmlFor="university-email" className="block text-xs font-semibold text-slate-700 mb-1">
-              Institutional Email (.ac.in / .edu)
+            <label htmlFor="institution-select" className="block text-xs font-semibold text-slate-800 mb-1">
+              Institution
+            </label>
+            <div className="relative">
+              <select
+                id="institution-select"
+                value={selectedInstitutionName}
+                onChange={(e) => {
+                  setSelectedInstitutionName(e.target.value);
+                  if (error) setError('');
+                }}
+                disabled={otpSent || isSubmitting}
+                className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy focus:border-gov-navy disabled:bg-slate-100 font-medium cursor-pointer"
+              >
+                <option value="">🎓 Select your institution</option>
+                {INSTITUTIONS.map((inst) => (
+                  <option key={inst.name} value={inst.name}>
+                    {inst.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Representative Name (Read-only / Disabled) */}
+          <div>
+            <label htmlFor="representative-name" className="block text-xs font-semibold text-slate-800 mb-1">
+              Representative Name
+            </label>
+            <input
+              id="representative-name"
+              type="text"
+              readOnly
+              disabled
+              value={selectedProfile ? selectedProfile.representative : ''}
+              placeholder="University Representative"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded bg-slate-100 text-slate-700 cursor-not-allowed font-medium"
+            />
+          </div>
+
+          {/* Email (Read-only / Disabled) */}
+          <div>
+            <label htmlFor="university-email" className="block text-xs font-semibold text-slate-800 mb-1">
+              Email
             </label>
             <input
               id="university-email"
               type="email"
-              placeholder={academicRole === 'student' ? 'student@bitmesra.ac.in' : 'faculty@bitmesra.ac.in'}
-              value={universityEmail}
-              onChange={e => {
-                setUniversityEmail(e.target.value);
-                if (error) setError('');
-              }}
-              disabled={otpSent}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:ring-2 focus:ring-gov-blue focus:border-gov-blue"
+              readOnly
+              disabled
+              value={selectedProfile ? selectedProfile.email : ''}
+              placeholder="demo@iitism.ac.in"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded bg-slate-100 text-slate-700 cursor-not-allowed font-mono"
             />
           </div>
 
+          {/* Phone Number (Read-only / Disabled) */}
           <div>
-            <label htmlFor="university-mobile" className="block text-xs font-semibold text-slate-700 mb-1">
-              Mobile Number
+            <label htmlFor="university-phone" className="block text-xs font-semibold text-slate-800 mb-1">
+              Phone Number
             </label>
-            <div className="relative flex rounded-md shadow-xs">
-              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-300 bg-slate-50 text-slate-600 text-xs font-mono font-medium">
-                +91
-              </span>
-              <input
-                id="university-mobile"
-                type="tel"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={10}
-                placeholder="9876543210"
-                value={mobileNumber}
-                onChange={handleMobileChange}
-                disabled={otpSent}
-                className="flex-1 min-w-0 block w-full px-3 py-2 text-sm border border-slate-300 rounded-r-md focus:ring-2 focus:ring-gov-blue focus:border-gov-blue font-mono"
-              />
-            </div>
+            <input
+              id="university-phone"
+              type="text"
+              readOnly
+              disabled
+              value={selectedProfile ? selectedProfile.phone : ''}
+              placeholder="+91 98765 43210"
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded bg-slate-100 text-slate-700 cursor-not-allowed font-mono"
+            />
           </div>
 
+          {/* OTP Input Step */}
           {otpSent && (
-            <div className="space-y-2 pt-2">
-              <p className="text-xs text-center font-medium text-slate-700">
-                OTP sent to your registered university email.
+            <div className="space-y-3 pt-3 border-t border-slate-200">
+              <p className="text-xs text-center font-semibold text-slate-800">
+                OTP sent to {selectedProfile?.email}
               </p>
               <OtpInput
                 value={otp}
@@ -193,33 +213,38 @@ export const UniversityLoginPage: React.FC = () => {
             </div>
           )}
 
+          {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2.5 px-4 rounded-md shadow-xs text-xs font-bold text-white bg-gov-navy hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-blue transition disabled:opacity-50"
+            disabled={isSubmitting || (!otpSent && !selectedInstitutionName)}
+            className="w-full py-2.5 px-4 rounded text-xs sm:text-sm font-bold text-white bg-gov-navy hover:bg-slate-800 focus:outline-none transition disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer mt-2"
           >
-            {isSubmitting ? 'Processing...' : otpSent ? 'Verify OTP' : 'Send OTP'}
+            {isSubmitting ? (
+              'Processing...'
+            ) : otpSent ? (
+              'Verify OTP →'
+            ) : (
+              'Continue →'
+            )}
           </button>
         </form>
 
-        <div className="pt-2 text-center text-xs text-slate-600">
-          New to CollabX?{' '}
-          <button
-            type="button"
-            onClick={() => navigate('/register?role=university')}
-            className="font-bold text-gov-blue hover:underline focus:outline-none"
-          >
-            Register
-          </button>
+        {/* Demo Access Note */}
+        <div className="pt-2 text-center text-xs text-slate-500 font-medium flex items-center justify-center gap-1">
+          <Lock className="w-3.5 h-3.5 text-slate-400" />
+          <span>Demo access • OTP verification</span>
         </div>
+      </div>
 
-        <div className="pt-4 border-t border-slate-100 text-center">
-          <Link to="/login" className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to account type
-          </Link>
-        </div>
+      {/* Back Link */}
+      <div className="mt-5 text-center">
+        <Link
+          to="/login"
+          className="inline-flex items-center text-xs font-semibold text-slate-600 hover:text-gov-navy transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Login
+        </Link>
       </div>
     </div>
   );
 };
-

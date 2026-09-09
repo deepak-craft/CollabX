@@ -106,6 +106,7 @@ export const INITIAL_PROBLEMS: ProblemReport[] = [
     hasVoiceNote: true,
     communityConfirmations: 247,
     status: 'pilot_deployed',
+    referredUniversities: ['Birla Institute of Technology (BIT) Mesra'],
     aiAnalysis: {
       category: 'Disaster Management / Water Management',
       severity: 86,
@@ -171,7 +172,8 @@ export const INITIAL_PROBLEMS: ProblemReport[] = [
       'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80'
     ],
     communityConfirmations: 412,
-    status: 'under_review',
+    status: 'university_review',
+    referredUniversities: ['IIT (ISM) Dhanbad'],
     aiAnalysis: {
       category: 'Disaster Management / Transportation Infrastructure',
       severity: 91,
@@ -199,7 +201,8 @@ export const INITIAL_PROBLEMS: ProblemReport[] = [
       'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80'
     ],
     communityConfirmations: 308,
-    status: 'verified',
+    status: 'university_review',
+    referredUniversities: ['National Institute of Technology (NIT) Jamshedpur'],
     aiAnalysis: {
       category: 'Disaster Management / Water Management',
       severity: 84,

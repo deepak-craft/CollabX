@@ -21,16 +21,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(storageService.getAuthToken()));
   const [showLandingPage, setShowLandingPage] = useState<boolean>(false);
 
-  const resolveOrganization = (user: { role: string; organization?: string }): string => {
+  const resolveOrganization = (user: { role: string; organization?: string; email?: string }): string => {
     if (user.organization && user.organization.trim() !== '') {
-      return user.organization;
+      return user.organization.trim();
     }
     const storedUser = storageService.getCurrentUser();
     if (storedUser && storedUser.role === user.role && storedUser.organization) {
-      return storedUser.organization;
+      if (!user.email || !storedUser.email || storedUser.email.toLowerCase() === user.email.toLowerCase()) {
+        return storedUser.organization.trim();
+      }
     }
-    const persona = storageService.getPersonaByRole(user.role as any);
-    return persona?.organization || '';
+    if (user.email) {
+      const emailLower = user.email.toLowerCase();
+      if (emailLower.includes('bitmesra') || emailLower.includes('@bit')) {
+        return 'Birla Institute of Technology (BIT) Mesra';
+      }
+      if (emailLower.includes('iitism') || emailLower.includes('ism') || emailLower.includes('dhanbad')) {
+        return 'IIT (ISM) Dhanbad';
+      }
+      if (emailLower.includes('nitjsr') || emailLower.includes('nit')) {
+        return 'National Institute of Technology (NIT) Jamshedpur';
+      }
+    }
+    return storedUser?.organization?.trim() || '';
   };
 
   useEffect(() => {
@@ -41,15 +54,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void collabxApi.getCurrentUser()
       .then(user => {
         const resolvedOrg = resolveOrganization(user);
-        setCurrentUserState(prev => ({
-          ...prev,
-          ...user,
-          subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
-          title: prev.title || user.role,
-          organization: resolvedOrg,
-          district: prev.district || 'Jharkhand',
-          verified: true,
-        }));
+        setCurrentUserState(prev => {
+          const updated: UserPersona = {
+            ...prev,
+            ...user,
+            subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
+            title: prev.title || user.role,
+            organization: resolvedOrg,
+            district: prev.district || 'Jharkhand',
+            verified: true,
+          };
+          storageService.setCurrentUser(updated);
+          return updated;
+        });
         setIsLoggedIn(true);
       })
       .catch(() => {
@@ -72,15 +89,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     storageService.setAuthToken(token);
     const user = await collabxApi.getCurrentUser();
     const resolvedOrg = resolveOrganization(user);
-    setCurrentUserState(prev => ({
-      ...prev,
-      ...user,
-      subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
-      title: prev.title || user.role,
-      organization: resolvedOrg,
-      district: prev.district || 'Jharkhand',
-      verified: true,
-    }));
+    setCurrentUserState(prev => {
+      const updated: UserPersona = {
+        ...prev,
+        ...user,
+        subRole: user.role === 'government' ? 'Government Officer' : user.role === 'expert' ? 'Domain Expert' : user.role === 'industry' ? 'Industry Partner' : user.role === 'professor' ? 'Professor' : user.role === 'student' ? 'Student' : 'Citizen',
+        title: prev.title || user.role,
+        organization: resolvedOrg,
+        district: prev.district || 'Jharkhand',
+        verified: true,
+      };
+      storageService.setCurrentUser(updated);
+      return updated;
+    });
     setIsLoggedIn(true);
     setShowLandingPage(false);
   };

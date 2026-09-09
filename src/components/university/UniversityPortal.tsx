@@ -247,13 +247,6 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
   const isProfessor = currentUser.role === 'professor';
 
   const userOrg = currentUser.organization?.trim() || '';
-  const [selectedUniversityFilter, setSelectedUniversityFilter] = useState<string>(userOrg);
-
-  useEffect(() => {
-    if (currentUser.organization) {
-      setSelectedUniversityFilter(currentUser.organization.trim());
-    }
-  }, [currentUser.organization]);
 
   const getTabFromPath = () => {
     if (location.pathname.endsWith('/matched')) return 'matched';
@@ -291,9 +284,9 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
   const [selectedProblemForView, setSelectedProblemForView] = useState<ProblemReport | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState<boolean>(false);
 
-  // Referred problems for active institution filter using normalized matching
-  const referredProblems = selectedUniversityFilter
-    ? storageService.getReferredProblemsForUniversity(selectedUniversityFilter)
+  // Referred problems for the authenticated user's institution using normalized matching
+  const referredProblems = userOrg
+    ? storageService.getReferredProblemsForUniversity(userOrg)
     : [];
 
   const handleOpenSubmitModal = (prob: ProblemReport) => {
@@ -735,34 +728,25 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
                 </p>
               </div>
 
-              {/* Institution Filter Selector for Demo Access Control & Persona Inspection */}
+              {/* Institution Display for Logged-in User */}
               <div className="flex items-center space-x-2 text-xs">
-                <span className="text-slate-500 font-semibold">Active Institution View:</span>
-                <select
-                  value={selectedUniversityFilter}
-                  onChange={e => setSelectedUniversityFilter(e.target.value)}
-                  className="p-1.5 border border-slate-300 rounded font-bold text-gov-navy bg-slate-50"
-                >
-                  {currentUser.organization && (
-                    <option value={currentUser.organization}>{currentUser.organization} (Logged-in)</option>
-                  )}
-                  <option value="Birla Institute of Technology (BIT) Mesra">BIT Mesra</option>
-                  <option value="IIT (ISM) Dhanbad">IIT (ISM) Dhanbad</option>
-                  <option value="National Institute of Technology (NIT) Jamshedpur">NIT Jamshedpur</option>
-                </select>
+                <span className="text-slate-500 font-semibold">Active Institution:</span>
+                <span className="p-1.5 border border-slate-300 rounded font-bold text-gov-navy bg-slate-50">
+                  {userOrg || 'No Institution Configured'}
+                </span>
               </div>
             </div>
 
-            {!selectedUniversityFilter ? (
+            {!userOrg ? (
               <div className="py-12 text-center text-xs text-slate-500 space-y-2">
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                <p className="font-semibold text-slate-800 text-sm">Your university institution is not configured for this demo account.</p>
-                <p className="text-slate-500">Please select an active institution view from the dropdown above or update your user profile organization.</p>
+                <p className="font-semibold text-slate-800 text-sm">Your university institution is not configured for this account.</p>
+                <p className="text-slate-500">Please update your user profile organization.</p>
               </div>
             ) : referredProblems.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500 space-y-2">
                 <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="font-semibold text-slate-700">No civic problems currently referred to {selectedUniversityFilter}.</p>
+                <p className="font-semibold text-slate-700">No civic problems currently referred to {userOrg}.</p>
                 <p className="text-slate-500">Government Experts refer verified problems after department matching.</p>
               </div>
             ) : (
@@ -819,7 +803,7 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
                       </div>
                       <div>
                         <span className="text-slate-500 font-semibold block text-[10px]">Referred Institution(s):</span>
-                        <strong className="text-gov-navy truncate block">{prob.referredUniversities?.join(', ') || selectedUniversityFilter}</strong>
+                        <strong className="text-gov-navy truncate block">{prob.referredUniversities?.join(', ') || userOrg}</strong>
                       </div>
                     </div>
 

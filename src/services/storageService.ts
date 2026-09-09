@@ -47,22 +47,31 @@ const STORAGE_KEYS = {
 
 export function normalizeInstitutionName(name: string | undefined | null): string {
   if (!name) return '';
-  return name
+  const cleaned = name
     .toLowerCase()
     .replace(/[\(\)\,\.\-\_]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (!cleaned) return '';
+
+  const isBit = (cleaned.includes('birla') || cleaned.includes('bit')) && cleaned.includes('mesra');
+  if (isBit) return 'birla institute of technology bit mesra';
+
+  const isIit = (cleaned.includes('iit') || cleaned.includes('indian institute of technology') || cleaned.includes('ism')) && cleaned.includes('dhanbad');
+  if (isIit) return 'iit ism dhanbad';
+
+  const isNit = (cleaned.includes('nit') || cleaned.includes('national institute of technology')) && cleaned.includes('jamshedpur');
+  if (isNit) return 'national institute of technology nit jamshedpur';
+
+  return cleaned;
 }
 
 export function isSameInstitution(a: string | undefined | null, b: string | undefined | null): boolean {
   const normA = normalizeInstitutionName(a);
   const normB = normalizeInstitutionName(b);
   if (!normA || !normB) return false;
-  if (normA === normB) return true;
-  if (normA.length >= 8 && normB.length >= 8 && (normA.includes(normB) || normB.includes(normA))) {
-    return true;
-  }
-  return false;
+  return normA === normB;
 }
 
 class StorageService {

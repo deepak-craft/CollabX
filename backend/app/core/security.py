@@ -60,3 +60,15 @@ def require_roles(*allowed_roles: str):
         return user
 
     return dependency
+
+
+def forbid_roles(*forbidden_roles: str):
+    def dependency(user: User = Depends(get_current_user)) -> User:
+        if user.role in forbidden_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Government role has read-only monitoring access and cannot mutate resources."
+            )
+        return user
+
+    return dependency

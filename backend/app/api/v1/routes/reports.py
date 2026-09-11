@@ -13,9 +13,10 @@ from app.db.session import SessionLocal
 from app.core.config import settings
 from app.models.report import Report
 from app.models.normalized import User
-from app.core.security import get_current_user, require_roles
+from app.core.security import forbid_roles, get_current_user, require_roles
 from app.services.duplicate_detection import find_duplicate_candidates
 from app.services.embedding_service import build_embedding, cosine_similarity, find_similar_reports, upsert_embedding
+from app.services.matching_service import match_report_to_department
 from app.services.problem_structuring import structure_problem
 
 router = APIRouter()
@@ -70,6 +71,11 @@ def serialize_report(row: Report) -> dict[str, object]:
         "status": row.status,
         "workflow_stage": row.workflow_stage,
         "department": row.department,
+        "matched_university": row.matched_university,
+        "matched_department": row.matched_department,
+        "matching_score": row.matching_score,
+        "matching_reason": row.matching_reason,
+        "secondary_matches": json.loads(row.secondary_matches_json) if row.secondary_matches_json else [],
         "duplicate_similarity": row.duplicate_similarity,
         "summary": recommendation.get("summary", ""),
         "category": row.category or recommendation.get("category", ""),
@@ -86,7 +92,7 @@ def serialize_report(row: Report) -> dict[str, object]:
 
 
 @router.get("")
-async def list_reports(db: Session = Depends(get_db), _user: User = Depends(require_roles("government", "expert"))) -> list[dict[str, object]]:
+async def list_reports(db: Session = Depends(get_db), _user: User = Depends(get_current_user)) -> list[dict[str, object]]:
     rows = db.scalars(select(Report).order_by(Report.created_at.desc())).all()
     return [serialize_report(row) for row in rows]
 
@@ -118,6 +124,8 @@ async def create_report(payload: ReportCreateRequest, db: Session = Depends(get_
     except Exception:
         recommendation = None
 
+    match_info = match_report_to_department(payload.title, payload.description, payload.locality)
+
     report_id = f"JH-RC-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     created_at = datetime.now(timezone.utc)
     row = Report(
@@ -129,15 +137,16 @@ async def create_report(payload: ReportCreateRequest, db: Session = Depends(get_
         citizen_phone=payload.citizen_phone,
         district=payload.district,
         locality=payload.locality,
-            latitude=payload.coordinates.get("lat") if payload.coordinates else None,
-            longitude=payload.coordinates.get("lng") if payload.coordinates else None,
+        latitude=payload.coordinates.get("lat") if payload.coordinates else None,
+        longitude=payload.coordinates.get("lng") if payload.coordinates else None,
         affected_population=payload.affected_population,
         frequency=payload.frequency,
         evidence_urls="||".join(payload.evidence_urls) if payload.evidence_urls else None,
         audio_transcript=payload.audio_transcript,
         has_voice_note=payload.has_voice_note,
         community_confirmations=1,
-        status="submitted",
+        status="university_matched",
+        workflow_stage="university_matched",
         category=recommendation.category if recommendation else None,
         severity=recommendation.severity if recommendation else None,
         priority=recommendation.priority_level if recommendation else None,
@@ -145,6 +154,11 @@ async def create_report(payload: ReportCreateRequest, db: Session = Depends(get_
         duplicate_candidate_id=duplicate_candidate_id if duplicate_similarity >= settings.duplicate_similarity_threshold else None,
         duplicate_status="possible_duplicate" if duplicate_similarity >= settings.duplicate_similarity_threshold else "new_report",
         ai_analysis_json=recommendation.model_dump_json() if recommendation else None,
+        matched_university=match_info["matched_university"],
+        matched_department=match_info["matched_department"],
+        matching_score=match_info["matching_score"],
+        matching_reason=match_info["matching_reason"],
+        secondary_matches_json=json.dumps(match_info["secondary_matches"]),
         created_at=created_at,
     )
 
@@ -179,7 +193,7 @@ async def similar_reports(report_id: str, db: Session = Depends(get_db), _user: 
 
 
 @router.patch("/{report_id}/ai-overrides")
-async def override_ai_recommendation(report_id: str, payload: ReportAIOverrideRequest, db: Session = Depends(get_db), _user: User = Depends(require_roles("government"))) -> dict[str, object]:
+async def override_ai_recommendation(report_id: str, payload: ReportAIOverrideRequest, db: Session = Depends(get_db), _user: User = Depends(forbid_roles("government"))) -> dict[str, object]:
     row = db.get(Report, report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Report not found")

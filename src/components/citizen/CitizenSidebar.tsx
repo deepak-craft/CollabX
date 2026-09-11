@@ -42,11 +42,7 @@ export const CitizenSidebar: React.FC<CitizenSidebarProps> = ({
   const getActiveId = () => {
     const p = location.pathname;
     if (p.endsWith('/report')) return 'report';
-    if (p.endsWith('/reports')) return 'my_reports';
-    if (p.endsWith('/track')) return 'track';
-    if (p.endsWith('/nearby')) return 'nearby';
-    if (p.endsWith('/notifications')) return 'notifications';
-    if (p.endsWith('/profile')) return 'profile';
+    if (p.endsWith('/reports') || p.endsWith('/track') || p.endsWith('/nearby')) return 'my_reports';
     return 'home';
   };
 
@@ -59,12 +55,8 @@ export const CitizenSidebar: React.FC<CitizenSidebarProps> = ({
 
   const navItems = [
     { id: 'home', label: t('Dashboard', 'डैशबोर्ड'), path: '/citizen', icon: Home },
-    { id: 'report', label: t('Report a Problem', 'समस्या दर्ज करें'), path: '/citizen/report', icon: PlusCircle },
-    { id: 'my_reports', label: t('My Reports', 'मेरी रिपोर्ट'), path: '/citizen/reports', icon: FileText, count: displayReports.length },
-    { id: 'track', label: t('Track Report', 'रिपोर्ट ट्रैक करें'), path: '/citizen/track', icon: Search },
-    { id: 'nearby', label: t('Nearby Issues', 'आस-पास के मुद्दे'), path: '/citizen/nearby', icon: MapPin },
-    { id: 'notifications', label: t('Notifications', 'सूचनाएं'), path: '/citizen/notifications', icon: Bell, count: notifications.length },
-    { id: 'profile', label: t('Profile', 'प्रोफाइल'), path: '/citizen/profile', icon: User },
+    { id: 'report', label: t('Report Problem', 'समस्या दर्ज करें'), path: '/citizen/report', icon: PlusCircle },
+    { id: 'my_reports', label: t('My Problems', 'मेरी समस्याएं'), path: '/citizen/reports', icon: FileText, count: displayReports.length },
   ];
 
   return (

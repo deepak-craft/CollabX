@@ -328,6 +328,8 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
     return () => window.removeEventListener('online', syncPendingReports);
   }, []);
 
+  const [submittedProblem, setSubmittedProblem] = useState<ProblemReport | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -351,7 +353,14 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       audioTranscript: audioTranscript || undefined,
       hasVoiceNote: Boolean(audioUrl || audioTranscript),
       communityConfirmations: 1,
-      status: 'ai_analyzed',
+      status: 'university_matched',
+      matchedUniversity: finalAiAnalysis.matchedUniversity,
+      matchedDepartment: finalAiAnalysis.matchedDepartment,
+      matchingScore: finalAiAnalysis.matchingScore,
+      matchingReason: finalAiAnalysis.matchingReason,
+      matchingExplanationBullets: finalAiAnalysis.matchingExplanationBullets,
+      secondaryMatches: finalAiAnalysis.secondaryMatches,
+      referredUniversities: finalAiAnalysis.matchedUniversity ? [finalAiAnalysis.matchedUniversity] : ['Birla Institute of Technology (BIT) Mesra'],
       aiAnalysis: finalAiAnalysis,
       createdAt: new Date().toISOString(),
     };
@@ -395,23 +404,129 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
       actorRole: 'Citizen',
       action: 'SUBMIT_PROBLEM',
       targetEntity: newProblem.id,
-      details: `Problem reported at ${locality}, ${district}. AI severity: ${finalAiAnalysis.severity}/100.`,
+      details: `Problem reported at ${locality}, ${district}. AI severity: ${finalAiAnalysis.severity}/100. Matched to ${newProblem.matchedUniversity} - ${newProblem.matchedDepartment} (${newProblem.matchingScore}% match).`,
       ipHash: '10.42.12.8 [Citizen Mobile Portal]',
     });
 
     // Notification
     storageService.addNotification({
       id: `notif-${Date.now()}`,
-      title: 'Civic Problem Submitted',
-      message: `Your grievance ${newProblem.id} has been processed by AI and submitted to the Urban Development Cell for verification.`,
+      title: 'Civic Problem Submitted & AI Matched',
+      message: `Your grievance ${newProblem.id} has been processed by AI and matched to ${newProblem.matchedUniversity} (${newProblem.matchedDepartment}).`,
       type: 'info',
       timestamp: 'Just now',
       read: false,
       targetRole: 'citizen',
     });
 
-    onSuccess(newProblem);
+    setSubmittedProblem(newProblem);
   };
+
+  if (submittedProblem) {
+    const analysis = submittedProblem.aiAnalysis;
+    return (
+      <div className="bg-white rounded-lg border border-gov-border shadow-gov p-5 sm:p-7 max-w-4xl mx-auto space-y-6">
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-lg flex items-start space-x-3">
+          <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h2 className="text-base sm:text-lg font-bold text-emerald-950">
+              Grievance Registered & Automatically Matched
+            </h2>
+            <p className="text-xs text-emerald-800">
+              Problem ID: <span className="font-mono font-bold">{submittedProblem.id}</span> • AI has analyzed the report and routed it directly to the designated university department.
+            </p>
+          </div>
+        </div>
+
+        {/* AI Immediate Analysis Card */}
+        <div className="p-5 bg-slate-50 rounded-lg border-2 border-gov-navy/20 space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-gov-saffron" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-gov-navy">
+                AI Problem Analysis & Institution Routing
+              </h3>
+            </div>
+            <span className="text-xs font-mono font-bold px-2.5 py-1 bg-gov-navy text-white rounded">
+              Match Score: {submittedProblem.matchingScore || 85}%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 bg-white rounded border border-slate-200 space-y-1">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Category</span>
+              <div className="font-bold text-slate-900 text-sm">{analysis?.category || 'Civic Infrastructure'}</div>
+            </div>
+
+            <div className="p-3 bg-white rounded border border-slate-200 space-y-1">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Priority Level</span>
+              <div className="font-bold text-red-600 text-sm">{analysis?.priority || 'High'}</div>
+            </div>
+
+            <div className="p-3 bg-white rounded border border-slate-200 space-y-1">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Duplicate Check Result</span>
+              <div className="font-bold text-slate-900 text-sm">
+                {analysis?.duplicateSimilarity && analysis.duplicateSimilarity > 40
+                  ? `Similarity ${analysis.duplicateSimilarity}%`
+                  : 'Unique Issue (0% duplicate)'}
+              </div>
+            </div>
+          </div>
+
+          {/* Matched Institution & Department */}
+          <div className="p-4 bg-white rounded-lg border-2 border-blue-300 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-blue-800 tracking-wider block">Matched University:</span>
+                <span className="text-base font-bold text-gov-navy block mt-0.5">
+                  {submittedProblem.matchedUniversity || 'Birla Institute of Technology (BIT) Mesra'}
+                </span>
+              </div>
+              <span className="px-3 py-1 bg-blue-100 text-gov-navy rounded text-xs font-bold border border-blue-200">
+                Department: {submittedProblem.matchedDepartment || 'Department of Civil Engineering'}
+              </span>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-700">
+              <span className="font-bold text-slate-900 block">Why this match:</span>
+              <p className="text-slate-700 italic">
+                {submittedProblem.matchingReason || 'Matched based on technical capability match in municipal infrastructure, drainage, and urban hydrology.'}
+              </p>
+              {submittedProblem.matchingExplanationBullets && submittedProblem.matchingExplanationBullets.length > 0 && (
+                <ul className="list-disc pl-5 space-y-1 text-slate-600 pt-1">
+                  {submittedProblem.matchingExplanationBullets.map((bullet, idx) => (
+                    <li key={idx}>{bullet}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setSubmittedProblem(null);
+              setTitle('');
+              setDescription('');
+            }}
+            className="px-4 py-2 border border-slate-300 text-slate-700 rounded text-xs font-semibold hover:bg-slate-100 transition"
+          >
+            Submit Another Problem
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSuccess(submittedProblem)}
+            className="px-6 py-2.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs sm:text-sm font-bold flex items-center space-x-2 transition shadow-sm"
+          >
+            <span>View My Problems & Progress →</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gov-border shadow-gov p-4 sm:p-6 max-w-4xl mx-auto">
@@ -851,13 +966,18 @@ export const ProblemReportForm: React.FC<ProblemReportFormProps> = ({ onSuccess,
               </div>
             )}
 
-            <div className="text-xs text-slate-600">
-              <span className="font-semibold text-slate-700">Affected Demographics:</span>{' '}
-              {aiAnalysis.affectedGroups.join(', ')}
-            </div>
-
-            <div className="text-[11px] text-slate-500 italic">
-              * Note: AI outputs are preliminary decision-support classifications. Verification is conducted by the Urban Development Department.
+            <div className="p-2.5 bg-white rounded border border-blue-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gov-navy">
+                  Target Match: {aiAnalysis.matchedUniversity || 'Birla Institute of Technology (BIT) Mesra'}
+                </span>
+                <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {aiAnalysis.matchedDepartment || 'Department of Civil Engineering'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 italic">
+                {aiAnalysis.matchingReason}
+              </p>
             </div>
           </div>
         )}

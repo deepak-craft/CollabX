@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy import String, Float, Integer, Text, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -36,5 +37,10 @@ class Report(Base):
     ai_analysis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     workflow_stage: Mapped[str] = mapped_column(String(50), nullable=False, default="submitted")
     department: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    created_at: Mapped[str] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    matched_university: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    matched_department: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    matching_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    matching_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    secondary_matches_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

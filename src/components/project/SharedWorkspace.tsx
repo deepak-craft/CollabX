@@ -120,15 +120,11 @@ export const SharedWorkspace: React.FC = () => {
               </span>
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-gov-navy mt-1">{project.title}</h2>
-            <p className="text-xs text-slate-600">
-              Harmu Bypass Section #4, Ranchi Municipal Ward 14
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-2 text-xs">
-            <span className="px-3 py-1 bg-slate-50 rounded border border-slate-200 font-medium text-slate-700">
-              Industry Support: <span className="font-bold text-emerald-800">{project.industrySupportStatus}</span>
-            </span>
+            <div className="flex items-center space-x-2 mt-1">
+              <span className="px-2.5 py-1 bg-amber-100 text-amber-950 font-bold border border-amber-300 rounded text-xs">
+                Co-Creators: {project.university} + {project.industryPartnerName || 'Industry Partner'}
+              </span>
+            </div>
           </div>
         </div>
 

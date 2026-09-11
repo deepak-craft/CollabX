@@ -19,6 +19,16 @@ export interface UserPersona {
 export type ProblemStatus = 
   | 'submitted' 
   | 'ai_analyzed' 
+  | 'university_matched' 
+  | 'university_adopted' 
+  | 'team_formed' 
+  | 'solution_development' 
+  | 'industry_collaboration' 
+  | 'prototype' 
+  | 'pilot' 
+  | 'implementation' 
+  | 'completed'
+  // Backward compatibility aliases
   | 'under_review' 
   | 'verified' 
   | 'matching_universities'
@@ -45,13 +55,22 @@ export interface UniversityMatch {
 export interface IndustrySupportOffer {
   id: string;
   problemId: string;
-  selectedSolutionId: string;
+  selectedSolutionId?: string;
   industryName: string;
-  contactPerson: string;
+  contactPerson?: string;
   supportTypes: SupportType[];
   description: string;
   status: 'Support Offer Submitted' | 'accepted' | 'declined';
   requestedAt: string;
+}
+
+export interface SecondaryMatchInfo {
+  universityId: string;
+  universityName: string;
+  departmentId: string;
+  departmentName: string;
+  score: number;
+  reason: string;
 }
 
 export interface AIProblemAnalysis {
@@ -62,6 +81,16 @@ export interface AIProblemAnalysis {
   duplicateCandidateId?: string;
   duplicateCandidateTitle?: string;
   affectedGroups: string[];
+  requiredSkills?: string[];
+  matchedUniversities?: string[];
+  matchedUniversity?: string;
+  matchedUniversityId?: string;
+  matchedDepartment?: string;
+  matchedDepartmentId?: string;
+  matchingScore?: number; // 0 - 100 dynamic score
+  matchingReason?: string;
+  matchingExplanationBullets?: string[];
+  secondaryMatches?: SecondaryMatchInfo[];
   confidence: number;
   rationale: string;
   analyzedAt: string;
@@ -84,6 +113,23 @@ export interface ProblemReport {
   communityConfirmations: number;
   status: ProblemStatus;
   aiAnalysis: AIProblemAnalysis;
+  matchedUniversity?: string;
+  matchedUniversityId?: string;
+  matchedDepartment?: string;
+  matchedDepartmentId?: string;
+  matchingScore?: number;
+  matchingReason?: string;
+  matchingExplanationBullets?: string[];
+  secondaryMatches?: SecondaryMatchInfo[];
+  teamName?: string;
+  facultyMentorName?: string;
+  facultyMentorDepartment?: string;
+  industryPartnerName?: string;
+  currentMilestoneTitle?: string;
+  nextMilestoneTitle?: string;
+  progressPercentage?: number;
+  impactMetrics?: ProjectImpactMetrics;
+  lastMilestoneUpdate?: string;
   createdAt: string;
   verifiedAt?: string;
   verifiedBy?: string;
@@ -258,6 +304,18 @@ export interface PilotMetrics {
   completionDate: string;
 }
 
+export interface ProjectImpactMetrics {
+  villagesReached?: number;
+  villagesCovered?: number;
+  citizensAffected?: number;
+  beneficiariesCount?: number;
+  performanceImprovementPercent?: number;
+  performanceImprovement?: string;
+  costSavings?: string;
+  districtsCovered?: number;
+  summary?: string;
+}
+
 export interface Project {
   id: string;
   challengeId: string;
@@ -267,12 +325,13 @@ export interface Project {
   teamName: string;
   industryPartnerName?: string;
   nodalOfficerName: string;
-  status: 'planning' | 'prototype' | 'testing' | 'pilot' | 'completed';
+  status: ProblemStatus;
   currentMilestoneIndex: number;
   milestones: ProjectMilestone[];
   tasks: ProjectTask[];
   documents: ProjectDocument[];
   pilotMetrics: PilotMetrics;
+  impactMetrics?: ProjectImpactMetrics;
   industrySupportStatus: SupportStatus;
 }
 

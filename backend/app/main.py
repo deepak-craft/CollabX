@@ -40,9 +40,19 @@ def create_app() -> FastAPI:
         Base.metadata.create_all(bind=engine)
         if "reports" in inspect(engine).get_table_names():
             report_columns = {column["name"] for column in inspect(engine).get_columns("reports")}
-            if "ai_analysis_json" not in report_columns:
-                with engine.begin() as connection:
+            with engine.begin() as connection:
+                if "ai_analysis_json" not in report_columns:
                     connection.execute(text("ALTER TABLE reports ADD COLUMN ai_analysis_json TEXT"))
+                if "matched_university" not in report_columns:
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN matched_university VARCHAR(180)"))
+                if "matched_department" not in report_columns:
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN matched_department VARCHAR(180)"))
+                if "matching_score" not in report_columns:
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN matching_score FLOAT"))
+                if "matching_reason" not in report_columns:
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN matching_reason TEXT"))
+                if "secondary_matches_json" not in report_columns:
+                    connection.execute(text("ALTER TABLE reports ADD COLUMN secondary_matches_json TEXT"))
         if "university_profiles" in inspect(engine).get_table_names():
             university_columns = {column["name"] for column in inspect(engine).get_columns("university_profiles")}
             if "student_team_skills" not in university_columns:

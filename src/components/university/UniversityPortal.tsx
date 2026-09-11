@@ -1,47 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
-import { ChallengeExplorer } from './ChallengeExplorer';
-import { TeamBuilder } from './TeamBuilder';
-import { ProfessorMentorView } from './ProfessorMentorView';
-import { SharedWorkspace } from '../project/SharedWorkspace';
 import { storageService } from '../../services/storageService';
-import { ProblemReport } from '../../types';
-import { SubmitSolutionModal } from './SubmitSolutionModal';
+import { ProblemReport, ProblemStatus } from '../../types';
+import { UNIVERSITIES, UniversityData, DepartmentCapability } from '../../data/universityDepartments';
 import {
   GraduationCap,
-  Target,
-  FileText,
-  Users,
-  Layers,
-  User,
-  BookOpen,
   Building2,
-  Send,
-  ShieldCheck,
   CheckCircle2,
   Eye,
   X,
   MapPin,
   Sparkles,
-  Volume2,
-  AlertTriangle
+  Users,
+  Layers,
+  ArrowRight,
+  BookOpen,
+  ChevronRight,
+  Clock,
+  Briefcase
 } from 'lucide-react';
-
 import { useLocation, useNavigate } from 'react-router-dom';
 
+// ==========================================
+// 1. VIEW PROBLEM DETAIL MODAL (Read-Only)
+// ==========================================
 interface ViewProblemModalProps {
   problem: ProblemReport;
   isOpen: boolean;
   onClose: () => void;
-  onSubmitSolution?: (problem: ProblemReport) => void;
+  onAdopt?: (problem: ProblemReport) => void;
 }
 
 export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
   problem,
   isOpen,
   onClose,
-  onSubmitSolution
+  onAdopt,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,8 +49,6 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const canSubmit = ['verified', 'matching_universities', 'university_review'].includes(problem.status);
 
   return (
     <div
@@ -90,8 +83,8 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
         <div className="p-5 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
           <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 rounded border border-slate-200">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2 py-0.5 rounded font-bold uppercase text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Status: {problem.status.replace('_', ' ')}
+              <span className="px-2 py-0.5 rounded font-bold uppercase text-[10px] bg-blue-100 text-gov-navy border border-blue-200">
+                Stage: {problem.status.replace('_', ' ').toUpperCase()}
               </span>
               {problem.aiAnalysis?.priority && (
                 <span
@@ -113,7 +106,7 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
               )}
             </div>
             <span className="text-[11px] text-slate-500 font-mono">
-              Reported on {new Date(problem.createdAt).toLocaleDateString()}
+              Reported: {new Date(problem.createdAt).toLocaleDateString()}
             </span>
           </div>
 
@@ -128,84 +121,46 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 text-[10px] font-semibold uppercase block">District & Locality</span>
+              <span className="text-slate-500 text-[10px] font-semibold uppercase block">Location</span>
               <span className="font-bold text-slate-900 mt-0.5 block">{problem.panchayatOrLocality}, {problem.district}</span>
             </div>
             <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
               <span className="text-slate-500 text-[10px] font-semibold uppercase block">Affected Population</span>
-              <span className="font-bold text-slate-900 mt-0.5 block">{problem.affectedPopulation ? `${problem.affectedPopulation.toLocaleString()} Residents` : 'Not available'}</span>
+              <span className="font-bold text-slate-900 mt-0.5 block">
+                {problem.affectedPopulation ? `${problem.affectedPopulation.toLocaleString()} Residents` : 'Community'}
+              </span>
             </div>
             <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
               <span className="text-slate-500 text-[10px] font-semibold uppercase block">Frequency</span>
-              <span className="font-bold text-slate-900 mt-0.5 block">{problem.frequency || 'Not available'}</span>
+              <span className="font-bold text-slate-900 mt-0.5 block">{problem.frequency || 'Seasonal / Chronic'}</span>
             </div>
           </div>
 
-          {problem.audioTranscript && (
-            <div className="p-2.5 bg-amber-50 rounded border border-amber-200 text-amber-950 flex items-center space-x-2">
-              <Volume2 className="w-4 h-4 text-gov-saffron flex-shrink-0" />
-              <div>
-                <span className="font-bold">Citizen Voice Note Transcript:</span> "{problem.audioTranscript}"
-              </div>
-            </div>
-          )}
-
-          {problem.evidenceUrls && problem.evidenceUrls.length > 0 && (
-            <div>
-              <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block mb-1">
-                On-Ground Photo Evidence:
+          {/* AI Matching Breakdown */}
+          <div className="p-3 bg-blue-50/70 rounded border border-blue-200 space-y-2">
+            <div className="flex items-center justify-between font-bold text-gov-navy text-[11px]">
+              <span className="flex items-center space-x-1.5">
+                <Sparkles className="w-4 h-4 text-gov-saffron" />
+                <span>AI Automated Institution & Department Match</span>
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {problem.evidenceUrls.map((url, idx) => (
-                  <img
-                    key={idx}
-                    src={url}
-                    alt={`Evidence ${idx + 1}`}
-                    className="w-full h-36 object-cover rounded border border-slate-300"
-                  />
+              <span className="font-mono bg-white px-2 py-0.5 rounded border border-blue-200">
+                Match Score: {problem.matchingScore || 88}%
+              </span>
+            </div>
+            <div className="text-xs text-slate-800">
+              <span className="font-bold">Target Routing: </span>
+              <span>{problem.matchedUniversity} • {problem.matchedDepartment}</span>
+            </div>
+            <p className="text-slate-700 italic text-[11px]">
+              {problem.matchingReason}
+            </p>
+            {problem.matchingExplanationBullets && problem.matchingExplanationBullets.length > 0 && (
+              <ul className="list-disc pl-4 space-y-0.5 text-slate-600 text-[11px]">
+                {problem.matchingExplanationBullets.map((bullet, idx) => (
+                  <li key={idx}>{bullet}</li>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {problem.aiAnalysis && (
-            <div className="p-3 bg-blue-50/70 rounded border border-blue-200 space-y-2">
-              <div className="flex items-center justify-between font-bold text-gov-navy text-[11px]">
-                <span className="flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-gov-blue" />
-                  <span>AI Decision Support Analysis</span>
-                </span>
-                <span>Severity Score: {problem.aiAnalysis.severity} / 100</span>
-              </div>
-              <p className="text-slate-700 italic text-[11px]">
-                AI Rationale: {problem.aiAnalysis.rationale}
-              </p>
-            </div>
-          )}
-
-          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-2">
-            <span className="font-bold text-gov-navy uppercase tracking-wider text-[10px] block">
-              Government Verification & University Referral Audit
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span className="text-slate-500 font-semibold">Verified Nodal Officer:</span>{' '}
-                <strong className="text-slate-900">{problem.verifiedBy || 'Alok Prasad, IAS'}</strong>
-              </div>
-              <div>
-                <span className="text-slate-500 font-semibold">Verification Date:</span>{' '}
-                <strong className="text-slate-900">{problem.verifiedAt ? new Date(problem.verifiedAt).toLocaleDateString() : 'Not available'}</strong>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-slate-500 font-semibold">Referred Institutions:</span>{' '}
-                <strong className="text-gov-navy">{problem.referredUniversities?.join(', ') || 'Not specified'}</strong>
-              </div>
-              {problem.verificationNotes && (
-                <div className="sm:col-span-2 text-slate-700 bg-white p-2 rounded border border-slate-200">
-                  <span className="font-semibold text-slate-900">Officer Verification Remarks:</span> {problem.verificationNotes}
-                </div>
-              )}
-            </div>
+              </ul>
+            )}
           </div>
         </div>
 
@@ -216,16 +171,16 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
           >
             Close
           </button>
-          {canSubmit && onSubmitSolution && (
+          {onAdopt && problem.status === 'university_matched' && (
             <button
               onClick={() => {
                 onClose();
-                onSubmitSolution(problem);
+                onAdopt(problem);
               }}
-              className="px-4 py-2 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold text-xs flex items-center space-x-1.5 shadow-sm"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs flex items-center space-x-1.5 shadow-sm"
             >
-              <Send className="w-3.5 h-3.5 text-gov-saffron-amber" />
-              <span>Submit Solution Proposal</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Adopt Problem</span>
             </button>
           )}
         </div>
@@ -234,81 +189,324 @@ export const ViewProblemModal: React.FC<ViewProblemModalProps> = ({
   );
 };
 
-interface UniversityPortalProps {
-  initialTab?: string;
+// ==========================================
+// 2. FORM TEAM MODAL
+// ==========================================
+interface FormTeamModalProps {
+  problem: ProblemReport | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onTeamFormed: () => void;
 }
 
-export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab = 'dashboard' }) => {
+const FormTeamModal: React.FC<FormTeamModalProps> = ({ problem, isOpen, onClose, onTeamFormed }) => {
+  const [teamName, setTeamName] = useState('Research Taskforce Alpha');
+  const [mentorName, setMentorName] = useState('Dr. Rajiv Sharma, Associate Professor');
+
+  if (!isOpen || !problem) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    storageService.formTeam(
+      problem.id,
+      teamName,
+      mentorName,
+      problem.matchedDepartment
+    );
+    onTeamFormed();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white w-full max-w-md rounded-lg border border-slate-300 shadow-xl overflow-hidden">
+        <div className="bg-gov-navy text-white p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Users className="w-4 h-4 text-gov-saffron" />
+            <h3 className="font-bold text-sm">Form Student & Faculty Research Team</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-300 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+          <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
+            <div className="font-bold text-slate-800">{problem.title}</div>
+            <div className="text-[11px] text-slate-500 font-mono mt-0.5">ID: {problem.id}</div>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Team Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={teamName}
+              onChange={e => setTeamName(e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded text-xs focus:border-gov-blue"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Faculty Mentor Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={mentorName}
+              onChange={e => setMentorName(e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded text-xs focus:border-gov-blue"
+            />
+          </div>
+
+          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded text-slate-700 text-[11px]">
+            • Department: <strong className="text-gov-navy">{problem.matchedDepartment}</strong><br />
+            • Advancing status to: <strong className="text-emerald-700">team_formed</strong>
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 flex items-center justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold shadow-xs"
+            >
+              Confirm Team
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 3. UPDATE MILESTONE MODAL
+// ==========================================
+interface UpdateMilestoneModalProps {
+  problem: ProblemReport | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdated: () => void;
+}
+
+const UpdateMilestoneModal: React.FC<UpdateMilestoneModalProps> = ({ problem, isOpen, onClose, onUpdated }) => {
+  const [currentMilestone, setCurrentMilestone] = useState('');
+  const [nextMilestone, setNextMilestone] = useState('');
+  const [stage, setStage] = useState<ProblemStatus>('solution_development');
+  const [progress, setProgress] = useState(55);
+
+  useEffect(() => {
+    if (problem) {
+      setCurrentMilestone(problem.currentMilestoneTitle || 'CAD Engineering & Simulation');
+      setNextMilestone(problem.nextMilestoneTitle || 'Pilot Field Deployment');
+      setStage(problem.status || 'solution_development');
+      setProgress(problem.progressPercentage || 50);
+    }
+  }, [problem]);
+
+  if (!isOpen || !problem) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    storageService.updateProblemMilestone(
+      problem.id,
+      stage,
+      currentMilestone,
+      nextMilestone,
+      Number(progress)
+    );
+    onUpdated();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white w-full max-w-md rounded-lg border border-slate-300 shadow-xl overflow-hidden">
+        <div className="bg-gov-navy text-white p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-gov-saffron" />
+            <h3 className="font-bold text-sm">Update Project Milestone</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-300 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Lifecycle Stage *
+            </label>
+            <select
+              value={stage}
+              onChange={e => {
+                const newStage = e.target.value as ProblemStatus;
+                setStage(newStage);
+                if (newStage === 'solution_development') setProgress(50);
+                if (newStage === 'industry_collaboration') setProgress(60);
+                if (newStage === 'prototype') setProgress(70);
+                if (newStage === 'pilot') setProgress(82);
+                if (newStage === 'implementation') setProgress(92);
+                if (newStage === 'completed') setProgress(100);
+              }}
+              className="w-full p-2 border border-slate-300 rounded text-xs focus:border-gov-blue bg-white"
+            >
+              <option value="solution_development">Solution Development (Stage 6)</option>
+              <option value="industry_collaboration">Industry Collaboration (Stage 7)</option>
+              <option value="prototype">Prototype (Stage 8)</option>
+              <option value="pilot">Pilot Trial (Stage 9)</option>
+              <option value="implementation">Implementation (Stage 10)</option>
+              <option value="completed">Completed (Stage 11)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Current Milestone Completed *
+            </label>
+            <input
+              type="text"
+              required
+              value={currentMilestone}
+              onChange={e => setCurrentMilestone(e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded text-xs focus:border-gov-blue"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Next Scheduled Milestone
+            </label>
+            <input
+              type="text"
+              value={nextMilestone}
+              onChange={e => setNextMilestone(e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded text-xs focus:border-gov-blue"
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wider text-[10px] mb-1">
+              Progress Percentage: {progress}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={progress}
+              onChange={e => setProgress(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 flex items-center justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold shadow-xs"
+            >
+              Save Milestone
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 4. MAIN UNIVERSITY PORTAL COMPONENT
+// ==========================================
+export const UniversityPortal: React.FC = () => {
   const { currentUser } = useAuth();
   const { t } = useAccessibility();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isProfessor = currentUser.role === 'professor';
+  // Selected Demo View Institution & Department
+  const defaultUni = UNIVERSITIES.find(u => 
+    u.name.toLowerCase().includes((currentUser.organization || '').toLowerCase()) ||
+    u.shortName.toLowerCase().includes((currentUser.organization || '').toLowerCase())
+  ) || UNIVERSITIES[0];
 
-  const userOrg = currentUser.organization?.trim() || '';
+  const [selectedUni, setSelectedUni] = useState<UniversityData>(defaultUni);
+  const [selectedDept, setSelectedDept] = useState<DepartmentCapability>(defaultUni.departments[0]);
 
+  // When selected university changes, default to its first department
+  const handleUniversityChange = (uniId: string) => {
+    const uni = UNIVERSITIES.find(u => u.id === uniId) || UNIVERSITIES[0];
+    setSelectedUni(uni);
+    setSelectedDept(uni.departments[0]);
+  };
+
+  // Determine active tab from pathname: dashboard | matched | projects
   const getTabFromPath = () => {
-    if (location.pathname.endsWith('/matched')) return 'matched';
-    if (location.pathname.endsWith('/challenges')) return 'challenges';
-    if (location.pathname.endsWith('/ideas')) return 'proposals';
-    if (location.pathname.endsWith('/contributions')) return 'contributions';
-    if (location.pathname.endsWith('/team')) return 'team';
+    if (location.pathname.endsWith('/problems') || location.pathname.endsWith('/matched')) return 'matched';
     if (location.pathname.endsWith('/projects')) return 'projects';
-    if (location.pathname.endsWith('/profile')) return 'profile';
     return 'dashboard';
   };
 
   const [activeTab, setActiveTab] = useState<string>(getTabFromPath());
-
-  const [ideas, setIdeas] = useState(() => storageService.getIdeas());
-  const [challenges] = useState(() => storageService.getChallenges());
   const [problems, setProblems] = useState<ProblemReport[]>(() => storageService.getProblems());
 
   useEffect(() => {
     setActiveTab(getTabFromPath());
     setProblems(storageService.getProblems());
-    setIdeas(storageService.getIdeas());
   }, [location.pathname]);
 
   const handleTabChange = (tab: string, path: string) => {
     setActiveTab(tab);
     setProblems(storageService.getProblems());
-    setIdeas(storageService.getIdeas());
     navigate(path);
   };
 
-  const [selectedProblemForSolution, setSelectedProblemForSolution] = useState<ProblemReport | null>(null);
-  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState<boolean>(false);
-
+  // Modals state
   const [selectedProblemForView, setSelectedProblemForView] = useState<ProblemReport | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState<boolean>(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  // Referred problems for the authenticated user's institution using normalized matching
-  const referredProblems = userOrg
-    ? storageService.getReferredProblemsForUniversity(userOrg)
-    : [];
+  const [selectedProblemForTeam, setSelectedProblemForTeam] = useState<ProblemReport | null>(null);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
 
-  const handleOpenSubmitModal = (prob: ProblemReport) => {
-    setSelectedProblemForSolution(prob);
-    setIsSubmitModalOpen(true);
+  const [selectedProblemForMilestone, setSelectedProblemForMilestone] = useState<ProblemReport | null>(null);
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+
+  // Filter problems matched to this university and department
+  const matchedProblems = storageService.getMatchedProblemsForDepartment(
+    selectedUni.name,
+    selectedDept.departmentName
+  );
+
+  const incomingProblems = matchedProblems.filter(p => p.status === 'university_matched');
+  const activeProjects = matchedProblems.filter(p => 
+    ['university_adopted', 'team_formed', 'solution_development', 'industry_collaboration', 'prototype', 'pilot', 'implementation', 'completed'].includes(p.status)
+  );
+
+  const handleAdopt = (prob: ProblemReport) => {
+    storageService.adoptProblem(prob.id, selectedUni.name, selectedDept.departmentName);
+    setProblems(storageService.getProblems());
+    setSelectedProblemForTeam(prob);
+    setIsTeamModalOpen(true);
   };
-
-  const handleOpenViewModal = (prob: ProblemReport) => {
-    setSelectedProblemForView(prob);
-    setIsViewModalOpen(true);
-  };
-
-  // Metrics derived from existing local data
-  const activeChallengesCount = challenges.length;
-  const myProposalsCount = ideas.length;
-  const underEvaluationCount = ideas.filter(i => ['submitted', 'under_review', 'ai_analyzed'].includes(i.status)).length;
-  const selectedForPilotCount = ideas.filter(i => ['selected', 'pilot'].includes(i.status)).length;
 
   return (
     <div className="space-y-6">
-      {/* Official Portal Header */}
-      <div className="bg-white rounded-md border border-slate-200 p-4 sm:p-5 shadow-sm">
+      {/* Official University Header */}
+      <div className="bg-white rounded-md border border-slate-200 p-4 sm:p-5 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded bg-slate-100 text-gov-navy border border-slate-300 flex items-center justify-center font-bold">
@@ -316,32 +514,67 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
             </div>
             <div>
               <span className="text-[11px] font-bold text-gov-navy uppercase tracking-wider block">
-                Government of Jharkhand • Higher Education & R&D Portal
+                Higher Education & Academic R&D Portal
               </span>
               <h1 className="text-xl sm:text-2xl font-bold text-gov-navy mt-0.5">
                 {t('University & Research Portal', 'विश्वविद्यालय एवं अनुसंधान पोर्टल')}
               </h1>
-              <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                {t('Discover public challenges and contribute research, technology and expertise.', 'सार्वजनिक चुनौतियों की खोज करें और अनुसंधान व तकनीक का योगदान दें।')}
+              <p className="text-xs text-slate-600 mt-0.5">
+                Direct AI routing to institution research departments: adopt problems, form student-faculty teams, and update milestones.
               </p>
             </div>
           </div>
-          <div className="text-right text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-200">
-            <span className="font-semibold text-slate-900">{currentUser.name}</span>
-            <div className="text-[11px] text-slate-500 font-mono">
-              {currentUser.organization || 'No Organization Configured'} ({isProfessor ? 'Faculty & Mentor' : 'Research Student'})
+
+          {/* Demo Account / Institution Switcher (Read-Only View Filter) */}
+          <div className="text-xs bg-slate-50 p-3 rounded-lg border border-slate-300 space-y-2 max-w-sm">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-gov-navy uppercase tracking-wider text-[10px]">
+                Demo Institution View Selector
+              </span>
+              <span className="text-[10px] text-slate-400">SIH 2024</span>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5">
+              <select
+                value={selectedUni.id}
+                onChange={e => handleUniversityChange(e.target.value)}
+                className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded font-bold text-gov-navy focus:border-gov-blue"
+              >
+                {UNIVERSITIES.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedDept.id}
+                onChange={e => {
+                  const dept = selectedUni.departments.find(d => d.id === e.target.value) || selectedUni.departments[0];
+                  setSelectedDept(dept);
+                }}
+                className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded text-slate-700 font-semibold focus:border-gov-blue"
+              >
+                {selectedUni.departments.map(d => (
+                  <option key={d.id} value={d.id}>
+                    Dept: {d.departmentName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="text-[10px] text-slate-500 italic">
+              * Filtering problems matched to: <strong>{selectedDept.departmentName}</strong>.
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs (Strictly 3 Items) */}
       <nav className="bg-white rounded-md border border-slate-200 p-1 flex flex-wrap gap-1" aria-label="University Navigation">
         <button
           onClick={() => handleTabChange('dashboard', '/university')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
             activeTab === 'dashboard'
-              ? 'bg-gov-navy text-white'
+              ? 'bg-gov-navy text-white font-bold'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -350,85 +583,37 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         </button>
 
         <button
-          onClick={() => handleTabChange('matched', '/university/matched')}
+          onClick={() => handleTabChange('matched', '/university/problems')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
             activeTab === 'matched'
-              ? 'bg-gov-navy text-white'
+              ? 'bg-gov-navy text-white font-bold'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
           <Building2 className="w-4 h-4 text-gov-saffron-amber" />
-          <span>{t('Matched Civic Problems', 'संबंधित नागरिक समस्याएं')}</span>
-          {referredProblems.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full text-[10px] font-bold border border-amber-300">
-              {referredProblems.length}
+          <span>{t('Matched Problems', 'संबंधित नागरिक समस्याएं')}</span>
+          {matchedProblems.length > 0 && (
+            <span className="ml-1.5 px-2 py-0.2 bg-amber-100 text-amber-900 rounded-full text-[10px] font-bold border border-amber-300">
+              {matchedProblems.length}
             </span>
           )}
         </button>
 
         <button
-          onClick={() => handleTabChange('challenges', '/university/challenges')}
+          onClick={() => handleTabChange('projects', '/university/projects')}
           className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
-            activeTab === 'challenges'
-              ? 'bg-gov-navy text-white'
+            activeTab === 'projects'
+              ? 'bg-gov-navy text-white font-bold'
               : 'text-slate-700 hover:bg-slate-100'
           }`}
         >
-          <Target className="w-4 h-4" />
-          <span>{t('Browse Challenges', 'चुनौतियां खोजें')}</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('proposals', '/university/ideas')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
-            activeTab === 'proposals'
-              ? 'bg-gov-navy text-white'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>{t('My Proposals', 'मेरे प्रस्ताव')}</span>
-          {ideas.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.2 bg-slate-200 text-slate-800 rounded-full text-[10px] font-bold">
-              {ideas.length}
+          <Layers className="w-4 h-4 text-emerald-400" />
+          <span>{t('Active Projects', 'सक्रिय अनुसंधान परियोजनाएं')}</span>
+          {activeProjects.length > 0 && (
+            <span className="ml-1.5 px-2 py-0.2 bg-emerald-100 text-emerald-900 rounded-full text-[10px] font-bold border border-emerald-300">
+              {activeProjects.length}
             </span>
           )}
-        </button>
-
-        <button
-          onClick={() => handleTabChange('contributions', '/university/contributions')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
-            activeTab === 'contributions'
-              ? 'bg-gov-navy text-white'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>{t('Research Contributions', 'अनुसंधान योगदान')}</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('team', '/university/team')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
-            activeTab === 'team'
-              ? 'bg-gov-navy text-white'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>{t('Collaboration', 'सहयोग')}</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('profile', '/university/profile')}
-          className={`py-2 px-3 sm:px-4 rounded text-xs font-semibold flex items-center space-x-2 transition ${
-            activeTab === 'profile'
-              ? 'bg-gov-navy text-white'
-              : 'text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <User className="w-4 h-4" />
-          <span>{t('Profile', 'प्रोफाइल')}</span>
         </button>
       </nav>
 
@@ -440,389 +625,92 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
           {/* Summary KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-md border border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('Active Challenges', 'सक्रिय चुनौतियां')}</div>
-              <div className="text-2xl font-bold text-gov-navy mt-1">{activeChallengesCount}</div>
-              <div className="text-[11px] text-slate-500 mt-1">State problem statements</div>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Matched to Department</div>
+              <div className="text-2xl font-bold text-gov-navy mt-1">{matchedProblems.length}</div>
+              <div className="text-[11px] text-slate-500 mt-1">{selectedDept.departmentName}</div>
             </div>
 
             <div className="bg-white p-4 rounded-md border border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('My Proposals', 'प्रस्तुत प्रस्ताव')}</div>
-              <div className="text-2xl font-bold text-gov-navy mt-1">{myProposalsCount}</div>
-              <div className="text-[11px] text-slate-500 mt-1">Submitted solutions</div>
+              <div className="text-xs font-bold text-amber-700 uppercase tracking-wider">Incoming for Adoption</div>
+              <div className="text-2xl font-bold text-amber-800 mt-1">{incomingProblems.length}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Ready for research team</div>
             </div>
 
             <div className="bg-white p-4 rounded-md border border-slate-200">
-              <div className="text-xs font-bold text-amber-700 uppercase tracking-wider">{t('Under Evaluation', 'मूल्यांकन के अधीन')}</div>
-              <div className="text-2xl font-bold text-amber-800 mt-1">{underEvaluationCount}</div>
-              <div className="text-[11px] text-slate-500 mt-1">Committee review stage</div>
+              <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">Active Projects</div>
+              <div className="text-2xl font-bold text-blue-900 mt-1">{activeProjects.length}</div>
+              <div className="text-[11px] text-slate-500 mt-1">Adopted & under development</div>
             </div>
 
             <div className="bg-white p-4 rounded-md border border-slate-200">
-              <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">{t('Selected for Pilot', 'पायलट हेतु चयनित')}</div>
-              <div className="text-2xl font-bold text-emerald-800 mt-1">{selectedForPilotCount}</div>
-              <div className="text-[11px] text-slate-500 mt-1">Approved for field testing</div>
+              <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Completed / Impact</div>
+              <div className="text-2xl font-bold text-emerald-800 mt-1">
+                {matchedProblems.filter(p => p.status === 'completed' || p.status === 'pilot').length}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">Pilots & implementations</div>
             </div>
           </div>
 
-          {/* Featured / Relevant Public Challenges */}
+          {/* Quick Action Queue: Incoming Problems for Adoption */}
           <div className="bg-white rounded-md border border-slate-200 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h2 className="text-base font-bold text-gov-navy">{t('Relevant Public Challenges', 'प्रासंगिक सार्वजनिक चुनौतियां')}</h2>
-                <p className="text-xs text-slate-600">Open problem statements categorized by engineering and technical domain.</p>
+                <h2 className="text-base font-bold text-gov-navy">
+                  Incoming Problems Matched to {selectedDept.departmentName} ({incomingProblems.length})
+                </h2>
+                <p className="text-xs text-slate-600">
+                  AI automatically matched these grievances based on technical capability match.
+                </p>
               </div>
               <button
-                onClick={() => handleTabChange('challenges', '/university/challenges')}
+                onClick={() => handleTabChange('matched', '/university/problems')}
                 className="text-xs font-semibold text-gov-navy hover:underline"
               >
-                {t('View All Challenges →', 'सभी देखें →')}
+                View All in Queue →
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {challenges.slice(0, 4).map((ch) => (
-                <div key={ch.id} className="bg-slate-50 border border-slate-200 p-4 rounded text-xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] font-bold text-gov-navy bg-white px-2 py-0.5 rounded border border-slate-200">{ch.id}</span>
-                    <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 font-semibold">{ch.domain}</span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 text-sm">{ch.title}</h3>
-                  <p className="text-slate-600 line-clamp-2">{ch.summary}</p>
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                    <span className="text-slate-500">District: {ch.district}</span>
-                    <button
-                      onClick={() => handleTabChange('challenges', '/university/challenges')}
-                      className="text-gov-navy font-semibold hover:underline"
-                    >
-                      Browse Details →
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 2: BROWSE CHALLENGES                            */}
-      {/* ==================================================== */}
-      {activeTab === 'challenges' && (
-        <ChallengeExplorer
-          onSelectChallengeForProject={() => handleTabChange('projects', '/university/projects')}
-        />
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 3: MY PROPOSALS                                 */}
-      {/* ==================================================== */}
-      {activeTab === 'proposals' && (
-        <div className="space-y-4">
-          {isProfessor ? (
-            <ProfessorMentorView />
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-white p-4 rounded-md border border-slate-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-gov-navy">Submitted Research Proposals ({ideas.length})</h2>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Track technical feasibility evaluations and state review committee decisions.
-                  </p>
-                </div>
-              </div>
-
-              {ideas.length === 0 ? (
-                <div className="bg-white p-8 rounded-md border border-slate-200 text-center text-xs text-slate-500">
-                  No proposals submitted yet.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {ideas.map(idea => {
-                    let statusLabel = 'Submitted';
-                    let statusClass = 'bg-amber-50 text-amber-900 border-amber-300';
-
-                    if (idea.status === 'selected') {
-                      statusLabel = 'Approved for Pilot';
-                      statusClass = 'bg-emerald-50 text-emerald-900 border-emerald-300';
-                    } else if (idea.status === 'ai_evaluated' || idea.status === 'shortlisted') {
-                      statusLabel = 'Under Committee Review';
-                      statusClass = 'bg-blue-50 text-blue-900 border-blue-300';
-                    }
-
-                    return (
-                      <div
-                        key={idea.id}
-                        className="bg-white rounded-md border border-slate-200 p-5 space-y-3 flex flex-col justify-between"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-mono text-slate-500 font-bold">{idea.id}</span>
-                            <span className={`px-2 py-0.5 rounded font-semibold text-[11px] border ${statusClass}`}>
-                              {statusLabel}
-                            </span>
-                          </div>
-
-                          <h3 className="text-sm font-bold text-gov-navy">{idea.title}</h3>
-                          <div className="text-xs text-slate-500">
-                            {idea.university} • {idea.teamName}
-                          </div>
-
-                          <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
-                            {idea.proposedSolution}
-                          </p>
-
-                          {/* Technical Feasibility Evaluation Panel */}
-                          <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1 text-xs">
-                            <div className="flex items-center justify-between font-bold text-slate-800">
-                              <span>Technical Feasibility Evaluation:</span>
-                              <span className="font-mono">{idea.aiScores?.compositeScore ?? 'N/A'} / 100</span>
-                            </div>
-                            {idea.aiScores && (
-                              <div className="text-[11px] text-slate-600">
-                                Feasibility: {idea.aiScores.feasibility}% | Impact: {idea.aiScores.socialImpact}% | Cost Efficacy: {idea.aiScores.costEfficiency}%
-                              </div>
-                            )}
-                          </div>
-
-                          {/* State Evaluation Remarks if selected */}
-                          {idea.expertScoreTotal && (
-                            <div className="p-3 bg-emerald-50 rounded border border-emerald-200 space-y-1 text-xs">
-                              <div className="flex items-center justify-between font-bold text-emerald-900">
-                                <span>Committee Assessment Decision:</span>
-                                <span>{idea.expertScoreTotal} / 100</span>
-                              </div>
-                              <p className="text-[11px] text-emerald-800 italic">
-                                "{idea.expertRemarks}"
-                              </p>
-                              <div className="text-[10px] text-slate-500 text-right">
-                                — Reviewed by {idea.expertEvaluatorName}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {idea.status === 'selected' && (
-                          <div className="pt-2 border-t border-slate-200">
-                            <button
-                              onClick={() => handleTabChange('projects', '/university/projects')}
-                              className="w-full py-2 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-semibold transition"
-                            >
-                              Open Project Workspace →
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 4: RESEARCH CONTRIBUTIONS                        */}
-      {/* ==================================================== */}
-      {activeTab === 'contributions' && (
-        <div className="bg-white rounded-md border border-slate-200 p-6 space-y-5">
-          <div className="border-b border-slate-200 pb-3">
-            <h2 className="text-base font-bold text-gov-navy">{t('Research & Technical Contributions', 'अनुसंधान एवं तकनीकी योगदान')}</h2>
-            <p className="text-xs text-slate-600">Technical documentation, prototype models, and field testing data.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 bg-slate-50 rounded border border-slate-200 space-y-2">
-              <span className="font-bold text-gov-navy text-sm block">1. Hydraulic Siphon Blueprint</span>
-              <p className="text-slate-600">Technical CAD schematics for automated culvert siphon deployment in high-water zones.</p>
-              <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200 text-[10px] font-semibold">Technical Documentation</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded border border-slate-200 space-y-2">
-              <span className="font-bold text-gov-navy text-sm block">2. LoRaWAN Telemetry Sensor Kit</span>
-              <p className="text-slate-600">Low-cost IoT water level reporting sensor setup tested at BIT Mesra hydraulics lab.</p>
-              <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200 text-[10px] font-semibold">Prototype Model</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded border border-slate-200 space-y-2">
-              <span className="font-bold text-gov-navy text-sm block">3. Monsoon Runoff Field Study</span>
-              <p className="text-slate-600">Observational dataset covering Harmu river basin runoff during heavy rainfall events.</p>
-              <span className="inline-block px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-semibold">Field Testing Data</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 5: COLLABORATION                                */}
-      {/* ==================================================== */}
-      {activeTab === 'team' && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-md border border-slate-200 text-xs text-slate-600">
-            <h2 className="text-sm font-bold text-gov-navy mb-1">Research & Project Collaboration</h2>
-            <p>Form inter-disciplinary project teams and coordinate with faculty mentors.</p>
-          </div>
-          <TeamBuilder />
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 6: PROJECT WORKSPACE                            */}
-      {/* ==================================================== */}
-      {activeTab === 'projects' && (
-        <SharedWorkspace />
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 7: PROFILE                                      */}
-      {/* ==================================================== */}
-      {activeTab === 'profile' && (
-        <div className="bg-white rounded-md border border-slate-200 p-6 space-y-5">
-          <div className="border-b border-slate-200 pb-3">
-            <h2 className="text-base font-bold text-gov-navy">{t('Institutional Profile Information', 'संस्थगत प्रोफाइल विवरण')}</h2>
-            <p className="text-xs text-slate-600">Registered academic and research organization details.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs max-w-2xl">
-            <div className="p-3 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Full Name</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.name}</span>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Role / Designation</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{isProfessor ? 'Faculty Professor & Mentor' : 'Research Student / Team Lead'}</span>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Institution</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.organization || 'Not Configured'}</span>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Department</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{currentUser.department || 'Department of Civil & Environmental Engineering'}</span>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded border border-slate-200">
-              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px] block">Contact Email</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block font-mono">{currentUser.email || 'N/A'}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB: MATCHED CIVIC PROBLEMS                           */}
-      {/* ==================================================== */}
-      {activeTab === 'matched' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-md border border-slate-200 p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-gov-navy">
-                  Matched Civic Problems Referred to Your Institution ({referredProblems.length})
-                </h2>
-                <p className="text-xs text-slate-600">
-                  Civic problems verified by Government Experts and specifically referred to your research department.
-                </p>
-              </div>
-
-              {/* Institution Display for Logged-in User */}
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="text-slate-500 font-semibold">Active Institution:</span>
-                <span className="p-1.5 border border-slate-300 rounded font-bold text-gov-navy bg-slate-50">
-                  {userOrg || 'No Institution Configured'}
-                </span>
-              </div>
-            </div>
-
-            {!userOrg ? (
-              <div className="py-12 text-center text-xs text-slate-500 space-y-2">
-                <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
-                <p className="font-semibold text-slate-800 text-sm">Your university institution is not configured for this account.</p>
-                <p className="text-slate-500">Please update your user profile organization.</p>
-              </div>
-            ) : referredProblems.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500 space-y-2">
-                <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="font-semibold text-slate-700">No civic problems currently referred to {userOrg}.</p>
-                <p className="text-slate-500">Government Experts refer verified problems after department matching.</p>
+            {incomingProblems.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-500">
+                No new incoming problems awaiting adoption for this department.
               </div>
             ) : (
-              <div className="space-y-4">
-                {referredProblems.map((prob) => (
-                  <div
-                    key={prob.id}
-                    className="bg-slate-50 rounded-lg border border-slate-200 p-5 space-y-3 hover:border-gov-blue transition"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+              <div className="space-y-3">
+                {incomingProblems.slice(0, 3).map(prob => (
+                  <div key={prob.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <span className="font-mono text-xs font-bold bg-white text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                        <span className="font-mono font-bold text-gov-navy bg-white px-2 py-0.5 rounded border border-slate-200">
                           {prob.id}
                         </span>
-                        <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-                          Referred to Your Institution
-                        </span>
-                        {prob.aiAnalysis?.priority && (
-                          <span
-                            className={`px-2 py-0.5 rounded font-bold uppercase text-[10px] ${
-                              prob.aiAnalysis.priority === 'Critical'
-                                ? 'bg-red-100 text-red-800'
-                                : prob.aiAnalysis.priority === 'High'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            Priority: {prob.aiAnalysis.priority}
-                          </span>
-                        )}
+                        <span className="font-bold text-slate-900 text-sm">{prob.title}</span>
                       </div>
-                      <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-gov-blue font-semibold">
-                        Category: {prob.aiAnalysis?.category || 'Not available'}
+                      <span className="px-2 py-0.5 bg-blue-100 text-gov-navy font-bold rounded text-[11px]">
+                        {prob.matchingScore || 90}% Match
                       </span>
                     </div>
 
-                    <div>
-                      <h3 className="text-base font-bold text-gov-navy">{prob.title}</h3>
-                      <p className="text-xs text-slate-700 leading-relaxed mt-1">{prob.description}</p>
-                    </div>
+                    <p className="text-slate-600 line-clamp-2">{prob.description}</p>
 
-                    <div className="p-3 bg-white rounded border border-slate-200 text-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                      <div>
-                        <span className="text-slate-500 font-semibold block text-[10px]">District & Location:</span>
-                        <strong className="text-slate-800">{prob.district} ({prob.panchayatOrLocality})</strong>
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-500">Location: {prob.panchayatOrLocality}, {prob.district}</span>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            setSelectedProblemForView(prob);
+                            setIsViewModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded font-semibold hover:bg-slate-100"
+                        >
+                          View Problem
+                        </button>
+                        <button
+                          onClick={() => handleAdopt(prob)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold"
+                        >
+                          Adopt Problem
+                        </button>
                       </div>
-                      <div>
-                        <span className="text-slate-500 font-semibold block text-[10px]">Verified Nodal Officer:</span>
-                        <strong className="text-slate-800">{prob.verifiedBy || 'Alok Prasad, IAS'}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 font-semibold block text-[10px]">Verification Status:</span>
-                        <strong className="text-emerald-800 font-mono uppercase">{prob.status.replace('_', ' ')}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 font-semibold block text-[10px]">Referred Institution(s):</span>
-                        <strong className="text-gov-navy truncate block">{prob.referredUniversities?.join(', ') || userOrg}</strong>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleOpenViewModal(prob)}
-                        className="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded font-bold text-xs flex items-center space-x-1.5 transition"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-slate-700" />
-                        <span>View Problem</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleOpenSubmitModal(prob)}
-                        className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold text-xs flex items-center space-x-1.5 shadow-sm transition"
-                      >
-                        <Send className="w-3.5 h-3.5 text-gov-saffron-amber" />
-                        <span>Submit Solution Proposal</span>
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -832,29 +720,239 @@ export const UniversityPortal: React.FC<UniversityPortalProps> = ({ initialTab =
         </div>
       )}
 
-      {/* View Problem Full Detail Modal */}
+      {/* ==================================================== */}
+      {/* TAB 2: MATCHED PROBLEMS                             */}
+      {/* ==================================================== */}
+      {activeTab === 'matched' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-md border border-slate-200">
+            <h2 className="text-base font-bold text-gov-navy">
+              Problems Matched to {selectedUni.shortName} • {selectedDept.departmentName} ({matchedProblems.length})
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Review automatically matched civic problems and adopt them into your department's research & engineering pipeline.
+            </p>
+          </div>
+
+          {matchedProblems.length === 0 ? (
+            <div className="bg-white p-12 text-center text-xs text-slate-500 rounded border border-slate-200">
+              No problems currently matched to {selectedDept.departmentName}. Switch the demo view selector above to inspect other departments.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {matchedProblems.map(prob => {
+                const isAdopted = ['university_adopted', 'team_formed', 'solution_development', 'industry_collaboration', 'prototype', 'pilot', 'implementation', 'completed'].includes(prob.status);
+
+                return (
+                  <div
+                    key={prob.id}
+                    className="bg-white rounded-md border border-slate-200 p-5 space-y-3 shadow-2xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono font-bold bg-slate-100 text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                          {prob.id}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded font-bold uppercase text-[10px] ${
+                          isAdopted ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-gov-navy'
+                        }`}>
+                          {prob.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded bg-blue-50 text-gov-navy font-bold font-mono">
+                        AI Match: {prob.matchingScore || 88}%
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-bold text-gov-navy">{prob.title}</h3>
+                      <p className="text-xs text-slate-700 mt-1 leading-relaxed">{prob.description}</p>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded border border-slate-200 text-xs space-y-1">
+                      <div className="text-slate-800">
+                        <strong>AI Matching Reason:</strong> {prob.matchingReason}
+                      </div>
+                      <div className="text-slate-600 text-[11px]">
+                        Location: {prob.panchayatOrLocality}, {prob.district} | Affected: {prob.affectedPopulation ? `${prob.affectedPopulation.toLocaleString()} residents` : 'Community'}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-500 font-mono text-[11px]">
+                        Routing: {prob.matchedUniversity} ({prob.matchedDepartment})
+                      </span>
+
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            setSelectedProblemForView(prob);
+                            setIsViewModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold text-xs flex items-center space-x-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Problem</span>
+                        </button>
+
+                        {!isAdopted ? (
+                          <button
+                            onClick={() => handleAdopt(prob)}
+                            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs flex items-center space-x-1 shadow-xs"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Adopt Problem</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedProblemForMilestone(prob);
+                              setIsMilestoneModalOpen(true);
+                            }}
+                            className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold text-xs flex items-center space-x-1 shadow-xs"
+                          >
+                            <Layers className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                            <span>Update Milestone</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* TAB 3: ACTIVE PROJECTS                              */}
+      {/* ==================================================== */}
+      {activeTab === 'projects' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-md border border-slate-200">
+            <h2 className="text-base font-bold text-gov-navy">
+              Active R&D Projects ({activeProjects.length})
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Track adopted research projects, student/faculty teams, industry partnerships, and milestone advancement.
+            </p>
+          </div>
+
+          {activeProjects.length === 0 ? (
+            <div className="bg-white p-12 text-center text-xs text-slate-500 rounded border border-slate-200">
+              No projects currently adopted for {selectedDept.departmentName}. Go to <strong>Matched Problems</strong> to adopt an incoming problem.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activeProjects.map(proj => (
+                <div key={proj.id} className="bg-white rounded-md border border-slate-200 p-5 space-y-4 shadow-2xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono font-bold bg-slate-100 text-gov-navy px-2 py-0.5 rounded border border-slate-200">
+                        {proj.id}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded font-bold uppercase text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        Stage: {proj.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <span className="text-slate-600 font-bold">
+                      Progress: {proj.progressPercentage || 50}%
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-gov-navy">{proj.title}</h3>
+                    <p className="text-xs text-slate-600 mt-1">{proj.description}</p>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                    <div
+                      className="bg-gov-navy h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${proj.progressPercentage || 50}%` }}
+                    />
+                  </div>
+
+                  {/* Team & Milestone Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded border border-slate-200 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Research Team</span>
+                      <strong className="text-slate-900 block mt-0.5">{proj.teamName || 'Engineering Taskforce Alpha'}</strong>
+                      <span className="text-slate-500 text-[11px]">Mentor: {proj.facultyMentorName || 'Prof. Rajiv Sharma'}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Industry Partner</span>
+                      <strong className="text-slate-900 block mt-0.5">{proj.industryPartnerName || 'Tata Steel CSR / Seeking Partner'}</strong>
+                      <span className="text-slate-500 text-[11px]">Co-creation & testing support</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 block">Current Milestone</span>
+                      <strong className="text-slate-900 block mt-0.5">{proj.currentMilestoneTitle || 'Solution Development'}</strong>
+                      <span className="text-slate-500 text-[11px]">Next: {proj.nextMilestoneTitle || 'Field Validation'}</span>
+                    </div>
+                  </div>
+
+                  {/* Primary Action Buttons */}
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-end space-x-2 text-xs">
+                    {(!proj.teamName || proj.status === 'university_adopted') && (
+                      <button
+                        onClick={() => {
+                          setSelectedProblemForTeam(proj);
+                          setIsTeamModalOpen(true);
+                        }}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold shadow-xs flex items-center space-x-1"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Form Team</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedProblemForMilestone(proj);
+                        setIsMilestoneModalOpen(true);
+                      }}
+                      className="px-4 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded font-bold shadow-xs flex items-center space-x-1"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-gov-saffron-amber" />
+                      <span>Update Milestone</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* View Problem Detail Modal */}
       {selectedProblemForView && (
         <ViewProblemModal
           problem={selectedProblemForView}
           isOpen={isViewModalOpen}
           onClose={() => setIsViewModalOpen(false)}
-          onSubmitSolution={(prob) => handleOpenSubmitModal(prob)}
+          onAdopt={handleAdopt}
         />
       )}
 
-      {/* Submit Solution Modal */}
-      {selectedProblemForSolution && (
-        <SubmitSolutionModal
-          problem={selectedProblemForSolution}
-          isOpen={isSubmitModalOpen}
-          onClose={() => setIsSubmitModalOpen(false)}
-          onSubmitted={() => {
-            setIdeas(storageService.getIdeas());
-            setProblems(storageService.getProblems());
-            handleTabChange('proposals', '/university/ideas');
-          }}
-        />
-      )}
+      {/* Form Team Modal */}
+      <FormTeamModal
+        problem={selectedProblemForTeam}
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        onTeamFormed={() => setProblems(storageService.getProblems())}
+      />
+
+      {/* Update Milestone Modal */}
+      <UpdateMilestoneModal
+        problem={selectedProblemForMilestone}
+        isOpen={isMilestoneModalOpen}
+        onClose={() => setIsMilestoneModalOpen(false)}
+        onUpdated={() => setProblems(storageService.getProblems())}
+      />
     </div>
   );
 };

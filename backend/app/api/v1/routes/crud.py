@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.routes.reports import get_db, serialize_report
-from app.core.security import get_current_user, require_roles
+from app.core.security import forbid_roles, get_current_user, require_roles
 from app.models.matching import OpenChallenge
 from app.models.normalized import Challenge, Feedback, Idea, Milestone, Project, User
 from app.models.report import Report
@@ -67,7 +67,7 @@ async def get_user_reports(user_id: str, db: Session = Depends(get_db), current_
 
 
 @router.patch("/reports/{report_id}/validation")
-async def validate_report(report_id: str, payload: GovernmentReportUpdate, db: Session = Depends(get_db), _government_user: User = Depends(require_roles("government"))) -> dict[str, object]:
+async def validate_report(report_id: str, payload: GovernmentReportUpdate, db: Session = Depends(get_db), actor: User = Depends(forbid_roles("government"))) -> dict[str, object]:
     report = db.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Problem report not found")
@@ -76,18 +76,17 @@ async def validate_report(report_id: str, payload: GovernmentReportUpdate, db: S
         raise HTTPException(status_code=400, detail="At least one validation field is required")
     for field, value in updates.items():
         setattr(report, field, value)
-    government_user = _government_user
     if report.status == "verified":
         report.workflow_stage = "validated"
     report.updated_at = now()
-    record_audit(db, government_user.id, government_user.role, "VALIDATE_REPORT", "report", report.id, updates)
+    record_audit(db, actor.id, actor.role, "VALIDATE_REPORT", "report", report.id, updates)
     db.commit()
     db.refresh(report)
     return serialize_report(report)
 
 
 @router.post("/challenges", status_code=status.HTTP_201_CREATED)
-async def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_db), government_user: User = Depends(require_roles("government"))) -> dict[str, object]:
+async def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_db), actor: User = Depends(forbid_roles("government"))) -> dict[str, object]:
     report = db.get(Report, payload.problem_report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Problem report not found")
@@ -110,7 +109,7 @@ async def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_d
     )
     report.status = "challenge_created"
     report.workflow_stage = "challenge_created"
-    record_audit(db, government_user.id, government_user.role, "CREATE_CHALLENGE", "challenge", challenge.id, {"problem_report_id": report.id})
+    record_audit(db, actor.id, actor.role, "CREATE_CHALLENGE", "challenge", challenge.id, {"problem_report_id": report.id})
     db.add(challenge)
     db.commit()
     db.refresh(challenge)
@@ -118,7 +117,7 @@ async def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_d
 
 
 @router.patch("/reports/{report_id}/routing")
-async def route_report(report_id: str, payload: ReportRoutingDecision, db: Session = Depends(get_db), government_user: User = Depends(require_roles("government"))) -> dict[str, object]:
+async def route_report(report_id: str, payload: ReportRoutingDecision, db: Session = Depends(get_db), actor: User = Depends(forbid_roles("government"))) -> dict[str, object]:
     report = db.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Problem report not found")
@@ -127,7 +126,7 @@ async def route_report(report_id: str, payload: ReportRoutingDecision, db: Sessi
     report.department = payload.department
     report.workflow_stage = "department_routed" if payload.route == "routine" else "innovation_candidate"
     report.updated_at = now()
-    record_audit(db, government_user.id, government_user.role, "ROUTE_REPORT", "report", report.id, payload.model_dump())
+    record_audit(db, actor.id, actor.role, "ROUTE_REPORT", "report", report.id, payload.model_dump())
     db.commit()
     db.refresh(report)
     return serialize_report(report)
@@ -163,7 +162,7 @@ async def submit_idea(challenge_id: str, payload: IdeaCreate, db: Session = Depe
 
 
 @router.post("/ideas/{idea_id}/projects", status_code=status.HTTP_201_CREATED)
-async def create_project(idea_id: str, payload: ProjectCreate, db: Session = Depends(get_db), government_user: User = Depends(require_roles("government"))) -> dict[str, object]:
+async def create_project(idea_id: str, payload: ProjectCreate, db: Session = Depends(get_db), actor: User = Depends(forbid_roles("government"))) -> dict[str, object]:
     idea = db.get(Idea, idea_id)
     if idea is None:
         raise HTTPException(status_code=404, detail="Idea not found")
@@ -179,7 +178,7 @@ async def create_project(idea_id: str, payload: ProjectCreate, db: Session = Dep
     db.add(project)
     idea.status = "selected"
     idea.selected_at = now()
-    record_audit(db, government_user.id, government_user.role, "CREATE_PROJECT", "project", project.id, {"idea_id": idea_id})
+    record_audit(db, actor.id, actor.role, "CREATE_PROJECT", "project", project.id, {"idea_id": idea_id})
     db.commit()
     db.refresh(project)
     return serialize_entity(project)
@@ -194,7 +193,7 @@ async def get_project(project_id: str, db: Session = Depends(get_db), _user: Use
 
 
 @router.patch("/projects/{project_id}/pilot")
-async def update_pilot(project_id: str, payload: PilotMetricsUpdate, db: Session = Depends(get_db), actor: User = Depends(require_roles("government", "expert"))) -> dict[str, object]:
+async def update_pilot(project_id: str, payload: PilotMetricsUpdate, db: Session = Depends(get_db), actor: User = Depends(require_roles("expert", "professor", "industry"))) -> dict[str, object]:
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -212,7 +211,7 @@ async def update_pilot(project_id: str, payload: PilotMetricsUpdate, db: Session
 
 
 @router.post("/ideas/{idea_id}/screen")
-async def screen_idea_route(idea_id: str, db: Session = Depends(get_db), actor: User = Depends(require_roles("expert", "government"))) -> dict[str, object]:
+async def screen_idea_route(idea_id: str, db: Session = Depends(get_db), actor: User = Depends(require_roles("expert", "professor"))) -> dict[str, object]:
     idea = db.get(Idea, idea_id)
     if idea is None:
         raise HTTPException(status_code=404, detail="Idea not found")
@@ -226,7 +225,7 @@ async def screen_idea_route(idea_id: str, db: Session = Depends(get_db), actor: 
 
 
 @router.post("/projects/{project_id}/milestones", status_code=status.HTTP_201_CREATED)
-async def create_milestone(project_id: str, payload: MilestoneCreate, db: Session = Depends(get_db), actor: User = Depends(require_roles("government", "professor", "industry"))) -> dict[str, object]:
+async def create_milestone(project_id: str, payload: MilestoneCreate, db: Session = Depends(get_db), actor: User = Depends(require_roles("professor", "industry"))) -> dict[str, object]:
     if db.get(Project, project_id) is None:
         raise HTTPException(status_code=404, detail="Project not found")
     milestone = Milestone(
@@ -247,7 +246,7 @@ async def create_milestone(project_id: str, payload: MilestoneCreate, db: Sessio
 
 
 @router.patch("/milestones/{milestone_id}")
-async def update_milestone(milestone_id: str, payload: dict[str, str], db: Session = Depends(get_db), actor: User = Depends(require_roles("government", "professor", "industry"))) -> dict[str, object]:
+async def update_milestone(milestone_id: str, payload: dict[str, str], db: Session = Depends(get_db), actor: User = Depends(require_roles("professor", "industry"))) -> dict[str, object]:
     milestone = db.get(Milestone, milestone_id)
     if milestone is None:
         raise HTTPException(status_code=404, detail="Milestone not found")
@@ -261,6 +260,7 @@ async def update_milestone(milestone_id: str, payload: dict[str, str], db: Sessi
     db.commit()
     db.refresh(milestone)
     return serialize_entity(milestone)
+
 
 
 @router.post("/projects/{project_id}/feedback", status_code=status.HTTP_201_CREATED)
@@ -297,7 +297,7 @@ async def get_project_feedback(project_id: str, db: Session = Depends(get_db), _
 
 
 @router.patch("/ideas/{idea_id}/review")
-async def review_idea(idea_id: str, payload: IdeaReview, db: Session = Depends(get_db), actor: User = Depends(require_roles("expert", "government"))) -> dict[str, object]:
+async def review_idea(idea_id: str, payload: IdeaReview, db: Session = Depends(get_db), actor: User = Depends(require_roles("expert", "professor"))) -> dict[str, object]:
     idea = db.get(Idea, idea_id)
     if idea is None:
         raise HTTPException(status_code=404, detail="Idea not found")
@@ -311,4 +311,4 @@ async def review_idea(idea_id: str, payload: IdeaReview, db: Session = Depends(g
     record_audit(db, actor.id, actor.role, "REVIEW_IDEA", "idea", idea.id, payload.model_dump(exclude_none=True))
     db.commit()
     db.refresh(idea)
-    return serialize_entity(idea)
+    return serialize_entity(idea)

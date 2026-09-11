@@ -1,146 +1,46 @@
 import React, { useState } from 'react';
-import { ProblemReport, Challenge } from '../../types';
+import { ProblemReport } from '../../types';
 import { storageService } from '../../services/storageService';
-import { useAuth } from '../../context/AuthContext';
 import { useAccessibility } from '../../context/AccessibilityContext';
-import { CreateChallengeModal } from './CreateChallengeModal';
-import { UniversityMatchingView } from './UniversityMatchingView';
-import { SolutionEvaluationView } from './SolutionEvaluationView';
 import { 
   ShieldCheck, 
   MapPin, 
   Sparkles, 
-  AlertTriangle, 
-  Check, 
-  X as XIcon, 
   Copy, 
-  HelpCircle, 
-  Camera, 
   Volume2, 
-  ChevronRight, 
-  Users,
-  Target
+  Building2,
+  Lock
 } from 'lucide-react';
 
-interface ProblemVerificationProps {
-  onChallengeCreated?: (challenge: Challenge) => void;
-}
-
-export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChallengeCreated }) => {
-  const { currentUser } = useAuth();
+export const ProblemVerification: React.FC = () => {
   const { t } = useAccessibility();
 
-  const [problems, setProblems] = useState<ProblemReport[]>(() => storageService.getProblems());
+  const [problems] = useState<ProblemReport[]>(() => storageService.getProblems());
   const [selectedProblem, setSelectedProblem] = useState<ProblemReport | null>(problems[0] || null);
-  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
-  const [verificationRemarks, setVerificationRemarks] = useState(
-    'Ground inspection conducted with Municipal Ward 14 engineers. Hydraulic bottleneck and culvert slope deficit confirmed. Suitable for open research challenge.'
-  );
-
-  const [viewMode, setViewMode] = useState<'queue' | 'match' | 'evaluate'>('queue');
-
-  const handleVerify = (problem: ProblemReport) => {
-    problem.status = 'verified';
-    problem.verifiedBy = `${currentUser.name} (${currentUser.title})`;
-    problem.verifiedAt = new Date().toISOString();
-    problem.verificationNotes = verificationRemarks;
-    storageService.saveProblem(problem);
-    setProblems([...storageService.getProblems()]);
-
-    // Audit log
-    storageService.addAuditLog({
-      actorName: currentUser.name,
-      actorRole: 'Government Officer',
-      action: 'VERIFY_PROBLEM',
-      targetEntity: problem.id,
-      details: `Problem officially verified. Category confirmed: ${problem.aiAnalysis.category}.`,
-      ipHash: '10.24.18.99 [GovNet Jharkhand]',
-    });
-
-    // Notify citizen
-    storageService.addNotification({
-      id: `notif-${Date.now()}`,
-      title: 'Your Civic Grievance Has Been Officially Verified',
-      message: `State Nodal Officer ${currentUser.name} has validated grievance ${problem.id}.`,
-      type: 'gov',
-      timestamp: 'Just now',
-      read: false,
-      targetRole: 'citizen',
-    });
-
-    setViewMode('match');
-  };
-
-  const handleReject = (problem: ProblemReport) => {
-    problem.status = 'rejected';
-    storageService.saveProblem(problem);
-    setProblems([...storageService.getProblems()]);
-    alert(`Grievance ${problem.id} marked as rejected.`);
-  };
-
-  const handleMergeDuplicate = (problem: ProblemReport) => {
-    if (!problem.aiAnalysis.duplicateCandidateId) return;
-    problem.status = 'verified';
-    problem.verificationNotes = `Merged as co-evidence into primary cluster ${problem.aiAnalysis.duplicateCandidateId}.`;
-    storageService.saveProblem(problem);
-    setProblems([...storageService.getProblems()]);
-    alert(`Merged ${problem.id} into duplicate candidate #${problem.aiAnalysis.duplicateCandidateId}. Evidence clustered.`);
-  };
-
-  const handleRequestInfo = (problem: ProblemReport) => {
-    storageService.addNotification({
-      id: `notif-${Date.now()}`,
-      title: 'Municipal Officer Requested More Information',
-      message: `Please upload additional flood depth photo for ${problem.id}.`,
-      type: 'info',
-      timestamp: 'Just now',
-      read: false,
-      targetRole: 'citizen',
-    });
-    alert(`Information request notice sent to citizen ${problem.citizenName}.`);
-  };
-
-  if (viewMode === 'match' && selectedProblem) {
-    return (
-      <UniversityMatchingView
-        problem={selectedProblem}
-        onBack={() => setViewMode('queue')}
-        onSuccess={() => {
-          setProblems([...storageService.getProblems()]);
-        }}
-      />
-    );
-  }
-
-  if (viewMode === 'evaluate' && selectedProblem) {
-    return (
-      <SolutionEvaluationView
-        problem={selectedProblem}
-        onBack={() => setViewMode('queue')}
-        onUpdated={() => {
-          setProblems([...storageService.getProblems()]);
-        }}
-      />
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov">
-        <h2 className="text-lg font-bold text-gov-navy flex items-center space-x-2">
-          <ShieldCheck className="w-5 h-5 text-gov-green" />
-          <span>{t('Government Grievance Verification Queue', 'सरकारी समस्या सत्यापन कतार')}</span>
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Review citizen reports, evidence photos, AI categorization, and duplicate similarity before university referral or open challenge creation.
-        </p>
+      <div className="bg-white p-4 rounded-lg border border-gov-border shadow-gov flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gov-navy flex items-center space-x-2">
+            <ShieldCheck className="w-5 h-5 text-gov-green" />
+            <span>{t('Government Problem Monitoring Directory', 'सरकारी समस्या निगरानी निर्देशिका')}</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Read-only monitoring of reported citizen problems, automated AI categorizations, duplicate clusters, and university routing.
+          </p>
+        </div>
+        <span className="px-3 py-1 bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold rounded flex items-center space-x-1">
+          <Lock className="w-3.5 h-3.5 text-slate-500" />
+          <span>Read-Only Oversight</span>
+        </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: List of Reports */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            Grievances Queue ({problems.length})
+            All Reported Problems ({problems.length})
           </div>
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
@@ -186,7 +86,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
           </div>
         </div>
 
-        {/* Right Column: Problem Deep Dive & Verification Actions */}
+        {/* Right Column: Problem Deep Dive (Read-Only) */}
         {selectedProblem && (
           <div className="lg:col-span-2 bg-white rounded-lg border border-gov-border shadow-gov p-5 space-y-5">
             {/* Header info */}
@@ -210,20 +110,16 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
               </div>
 
               <span
-                className={`text-xs px-2.5 py-1 rounded font-bold uppercase ${
-                  selectedProblem.status === 'verified' || selectedProblem.status === 'matching_universities'
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-blue-100 text-gov-blue border border-blue-200'
-                }`}
+                className="text-xs px-2.5 py-1 rounded font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300"
               >
-                Status: {selectedProblem.status.replace('_', ' ')}
+                Stage: {selectedProblem.status.replace('_', ' ')}
               </span>
             </div>
 
             {/* Description & Citizen Audio Note */}
             <div className="space-y-2 text-xs">
               <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block">
-                Citizen Grievance Description:
+                Citizen Grievance Details:
               </span>
               <p className="text-slate-700 bg-slate-50 p-3 rounded border border-slate-200 leading-relaxed">
                 {selectedProblem.description}
@@ -246,7 +142,7 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
                   On-Ground Photo Evidence:
                 </span>
                 <img
-                  src={selectedProblem.evidenceUrls[0]}
+                  src={selectedProblem.evidenceUrls[0] || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80'}
                   alt="Evidence"
                   className="w-full h-32 object-cover rounded border border-slate-300 shadow-xs"
                 />
@@ -262,21 +158,19 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
                     <span className="text-base">{selectedProblem.communityConfirmations} Residents</span>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    Local citizens in Ward 14 confirmed facing this waterlogging bottleneck during rainstorms.
+                    Local residents confirmed facing this issue.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* ==================================================== */}
-            {/* AI DECISION SUPPORT PANEL                            */}
-            {/* ==================================================== */}
+            {/* AI DECISION SUPPORT PANEL (READ ONLY) */}
             <div className="p-4 bg-slate-50 rounded-lg border-2 border-blue-200 space-y-3 text-xs">
               <div className="flex items-center justify-between border-b border-blue-200 pb-1.5">
                 <div className="flex items-center space-x-1.5">
                   <Sparkles className="w-4 h-4 text-gov-blue" />
                   <span className="font-bold text-gov-navy uppercase tracking-wider text-[11px]">
-                    AI Analysis — Automated Decision Support
+                    AI Analysis & Routing Engine (Automated)
                   </span>
                 </div>
                 <span className="text-[10px] bg-blue-100 text-blue-900 font-bold px-2 py-0.5 rounded">
@@ -306,18 +200,19 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
                 </div>
               </div>
 
-              {selectedProblem.aiAnalysis.duplicateSimilarity >= 70 && (
-                <div className="p-2 bg-amber-50 rounded border border-amber-300 text-amber-900 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Copy className="w-4 h-4 text-amber-700" />
-                    <span>Potential Duplicate with #{selectedProblem.aiAnalysis.duplicateCandidateId} ({selectedProblem.aiAnalysis.duplicateSimilarity}%)</span>
+              {selectedProblem.aiAnalysis.matchedUniversities && selectedProblem.aiAnalysis.matchedUniversities.length > 0 && (
+                <div className="p-2.5 bg-blue-50 rounded border border-blue-200 text-blue-950 flex items-center space-x-2">
+                  <Building2 className="w-4 h-4 text-gov-blue flex-shrink-0" />
+                  <div>
+                    <span className="font-bold">AI Matched Universities:</span> {selectedProblem.aiAnalysis.matchedUniversities.join(', ')}
                   </div>
-                  <button
-                    onClick={() => handleMergeDuplicate(selectedProblem)}
-                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px]"
-                  >
-                    Merge Duplicate
-                  </button>
+                </div>
+              )}
+
+              {selectedProblem.aiAnalysis.duplicateSimilarity >= 70 && (
+                <div className="p-2 bg-amber-50 rounded border border-amber-300 text-amber-900 flex items-center space-x-2">
+                  <Copy className="w-4 h-4 text-amber-700" />
+                  <span>Potential Duplicate Cluster with #{selectedProblem.aiAnalysis.duplicateCandidateId} ({selectedProblem.aiAnalysis.duplicateSimilarity}%)</span>
                 </div>
               )}
 
@@ -326,89 +221,16 @@ export const ProblemVerification: React.FC<ProblemVerificationProps> = ({ onChal
               </p>
             </div>
 
-            {/* Officer Inspection Remarks Input */}
-            <div className="space-y-1 text-xs">
-              <label className="block font-bold text-slate-700 uppercase tracking-wider">
-                Government Officer Verification Remarks *
-              </label>
-              <textarea
-                rows={2}
-                value={verificationRemarks}
-                onChange={e => setVerificationRemarks(e.target.value)}
-                className="w-full p-2.5 text-xs border border-slate-300 rounded focus:border-gov-blue"
-              ></textarea>
-            </div>
-
-            {/* Verification Actions Bar */}
-            <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleReject(selectedProblem)}
-                  className="px-3 py-1.5 border border-red-300 text-red-700 hover:bg-red-50 rounded text-xs font-semibold flex items-center space-x-1"
-                >
-                  <XIcon className="w-3.5 h-3.5" />
-                  <span>Reject</span>
-                </button>
-
-                <button
-                  onClick={() => handleRequestInfo(selectedProblem)}
-                  className="px-3 py-1.5 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded text-xs font-semibold flex items-center space-x-1"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                  <span>Request Info</span>
-                </button>
-
-                <button
-                  onClick={() => handleVerify(selectedProblem)}
-                  className="px-4 py-1.5 bg-gov-green hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center space-x-1 shadow-sm transition"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Verify Problem</span>
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setViewMode('match')}
-                  className="px-3.5 py-1.5 bg-gov-navy hover:bg-slate-800 text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
-                >
-                  <Users className="w-3.5 h-3.5 text-gov-saffron-amber" />
-                  <span>Find Suitable Universities →</span>
-                </button>
-
-                <button
-                  onClick={() => setViewMode('evaluate')}
-                  className="px-3.5 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs font-bold flex items-center space-x-1.5 shadow-sm transition"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Evaluate Solutions</span>
-                </button>
-
-                {/* Secondary Option: Open Challenge */}
-                <button
-                  onClick={() => setIsChallengeModalOpen(true)}
-                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded text-xs font-semibold flex items-center space-x-1 transition"
-                >
-                  <Target className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Open Challenge</span>
-                </button>
-              </div>
+            {/* Read-Only Notice Banner */}
+            <div className="p-3 bg-slate-100 rounded border border-slate-200 text-slate-600 text-xs flex items-center space-x-2">
+              <Lock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <span>
+                <strong>Read-Only Monitoring Access:</strong> Government monitors problem discovery and university progress without workflow intervention.
+              </span>
             </div>
           </div>
         )}
       </div>
-
-      {/* Convert to Challenge Modal */}
-      {selectedProblem && (
-        <CreateChallengeModal
-          problem={selectedProblem}
-          isOpen={isChallengeModalOpen}
-          onClose={() => setIsChallengeModalOpen(false)}
-          onCreated={c => {
-            if (onChallengeCreated) onChallengeCreated(c);
-          }}
-        />
-      )}
     </div>
   );
 };

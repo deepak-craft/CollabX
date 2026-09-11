@@ -11,7 +11,8 @@ import {
   InAppNotification,
   AuditLogEntry,
   UserPersona,
-  UserRole
+  UserRole,
+  ProblemStatus
 } from '../types';
 import {
   SEEDED_PERSONAS,
@@ -63,6 +64,9 @@ export function normalizeInstitutionName(name: string | undefined | null): strin
 
   const isNit = (cleaned.includes('nit') || cleaned.includes('national institute of technology')) && cleaned.includes('jamshedpur');
   if (isNit) return 'national institute of technology nit jamshedpur';
+
+  const isBau = (cleaned.includes('birsa') || cleaned.includes('bau')) && (cleaned.includes('agricultural') || cleaned.includes('ranchi') || cleaned.includes('kanke'));
+  if (isBau) return 'birsa agricultural university bau ranchi';
 
   return cleaned;
 }
@@ -118,13 +122,8 @@ class StorageService {
   }
 
   getPersonaByRole(role: UserRole, subRole?: string): UserPersona {
-    const match = SEEDED_PERSONAS.find(p => {
-      if (subRole && p.subRole) {
-        return p.subRole.toLowerCase().includes(subRole.toLowerCase());
-      }
-      return p.role === role;
-    });
-    return match || SEEDED_PERSONAS[0];
+    const found = SEEDED_PERSONAS.find(p => p.role === role && (!subRole || p.subRole === subRole));
+    return found || SEEDED_PERSONAS[0];
   }
 
   getAllPersonas(): UserPersona[] {
@@ -138,13 +137,147 @@ class StorageService {
 
   saveProblem(problem: ProblemReport): void {
     const problems = this.getProblems();
+
+    // Ensure matching fields from AI analysis are persisted directly on the problem record
+    if (problem.aiAnalysis) {
+      if (!problem.matchedUniversity && problem.aiAnalysis.matchedUniversity) {
+        problem.matchedUniversity = problem.aiAnalysis.matchedUniversity;
+      }
+      if (!problem.matchedUniversityId && problem.aiAnalysis.matchedUniversityId) {
+        problem.matchedUniversityId = problem.aiAnalysis.matchedUniversityId;
+      }
+      if (!problem.matchedDepartment && problem.aiAnalysis.matchedDepartment) {
+        problem.matchedDepartment = problem.aiAnalysis.matchedDepartment;
+      }
+      if (!problem.matchedDepartmentId && problem.aiAnalysis.matchedDepartmentId) {
+        problem.matchedDepartmentId = problem.aiAnalysis.matchedDepartmentId;
+      }
+      if (problem.matchingScore === undefined && problem.aiAnalysis.matchingScore !== undefined) {
+        problem.matchingScore = problem.aiAnalysis.matchingScore;
+      }
+      if (!problem.matchingReason && problem.aiAnalysis.matchingReason) {
+        problem.matchingReason = problem.aiAnalysis.matchingReason;
+      }
+      if (!problem.matchingExplanationBullets && problem.aiAnalysis.matchingExplanationBullets) {
+        problem.matchingExplanationBullets = problem.aiAnalysis.matchingExplanationBullets;
+      }
+      if (!problem.secondaryMatches && problem.aiAnalysis.secondaryMatches) {
+        problem.secondaryMatches = problem.aiAnalysis.secondaryMatches;
+      }
+    }
+
     const existingIndex = problems.findIndex(p => p.id === problem.id);
     if (existingIndex >= 0) {
       problems[existingIndex] = problem;
     } else {
+      if (problem.status === 'submitted' || !problem.status) {
+        problem.status = 'university_matched';
+      }
+      if (problem.matchedUniversity) {
+        problem.referredUniversities = [problem.matchedUniversity];
+      }
       problems.unshift(problem);
     }
     this.setItem(STORAGE_KEYS.PROBLEMS, problems);
+  }
+
+  adoptProblem(problemId: string, universityName: string, departmentName?: string): ProblemReport | null {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.status = 'university_adopted';
+      if (!problem.matchedUniversity) problem.matchedUniversity = universityName;
+      if (departmentName && !problem.matchedDepartment) problem.matchedDepartment = departmentName;
+      if (!problem.referredUniversities) problem.referredUniversities = [];
+      if (!problem.referredUniversities.some(u => isSameInstitution(u, universityName))) {
+        problem.referredUniversities.push(universityName);
+      }
+      this.saveProblem(problem);
+
+      this.addAuditLog({
+        actorName: universityName,
+        actorRole: 'University',
+        action: 'ADOPT_PROBLEM',
+        targetEntity: problem.id,
+        details: `${universityName} (${departmentName || problem.matchedDepartment || 'Department'}) adopted problem #${problem.id} to initiate solution development.`,
+        ipHash: '10.20.4.1 [University Campus Gateway]',
+      });
+    }
+    return problem || null;
+  }
+
+  formTeam(problemId: string, teamName: string, mentorName: string, mentorDepartment?: string): ProblemReport | null {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.status = 'team_formed';
+      problem.teamName = teamName;
+      problem.facultyMentorName = mentorName;
+      if (mentorDepartment) problem.facultyMentorDepartment = mentorDepartment;
+      problem.currentMilestoneTitle = 'Initial Technical Scoping & Architecture';
+      problem.nextMilestoneTitle = 'Engineering Solution Development';
+      problem.progressPercentage = 38;
+      problem.lastMilestoneUpdate = new Date().toISOString();
+      this.saveProblem(problem);
+
+      this.addAuditLog({
+        actorName: mentorName || 'Faculty Mentor',
+        actorRole: 'University',
+        action: 'FORM_TEAM',
+        targetEntity: problem.id,
+        details: `Formed research team "${teamName}" mentored by ${mentorName} for problem #${problem.id}.`,
+        ipHash: '10.20.4.1 [University Campus Gateway]',
+      });
+    }
+    return problem || null;
+  }
+
+  updateProblemMilestone(
+    problemId: string, 
+    stage: ProblemStatus, 
+    currentMilestone: string, 
+    nextMilestone?: string, 
+    progress?: number
+  ): ProblemReport | null {
+    const problems = this.getProblems();
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      problem.status = stage;
+      problem.currentMilestoneTitle = currentMilestone;
+      if (nextMilestone) problem.nextMilestoneTitle = nextMilestone;
+      if (progress !== undefined) problem.progressPercentage = progress;
+      problem.lastMilestoneUpdate = new Date().toISOString();
+      this.saveProblem(problem);
+
+      this.addAuditLog({
+        actorName: problem.facultyMentorName || 'University Team Lead',
+        actorRole: 'University',
+        action: 'UPDATE_MILESTONE',
+        targetEntity: problem.id,
+        details: `Advanced problem #${problem.id} to stage ${stage} ("${currentMilestone}").`,
+        ipHash: '10.20.4.1 [University Campus Gateway]',
+      });
+    }
+    return problem || null;
+  }
+
+  getMatchedProblemsForDepartment(universityNameOrId: string, departmentNameOrId?: string): ProblemReport[] {
+    const problems = this.getProblems();
+    return problems.filter(p => {
+      const matchUniv = isSameInstitution(p.matchedUniversity, universityNameOrId) ||
+        (p.matchedUniversityId && p.matchedUniversityId.toLowerCase() === universityNameOrId.toLowerCase()) ||
+        (p.referredUniversities && p.referredUniversities.some(u => isSameInstitution(u, universityNameOrId)));
+
+      if (!matchUniv) return false;
+
+      if (!departmentNameOrId) return true;
+
+      const deptTarget = departmentNameOrId.toLowerCase();
+      const pDept = (p.matchedDepartment || '').toLowerCase();
+      const pDeptId = (p.matchedDepartmentId || '').toLowerCase();
+
+      return pDept.includes(deptTarget) || pDeptId.includes(deptTarget) || deptTarget.includes(pDept);
+    });
   }
 
   referProblemToUniversities(problemId: string, universityNames: string[]): void {
@@ -152,18 +285,13 @@ class StorageService {
     const problem = problems.find(p => p.id === problemId);
     if (problem) {
       problem.referredUniversities = universityNames;
-      problem.status = 'university_review';
+      problem.status = 'university_matched';
       this.saveProblem(problem);
     }
   }
 
   getReferredProblemsForUniversity(universityName: string): ProblemReport[] {
-    if (!universityName) return [];
-    const problems = this.getProblems();
-    return problems.filter(p => {
-      if (!p.referredUniversities || p.referredUniversities.length === 0) return false;
-      return p.referredUniversities.some(u => isSameInstitution(u, universityName));
-    });
+    return this.getMatchedProblemsForDepartment(universityName);
   }
 
   // Challenges

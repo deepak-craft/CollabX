@@ -30,9 +30,9 @@ def _run(awaitable):
     return asyncio.run(awaitable)
 
 
-def _user():
+def _user(role: str = "citizen"):
     timestamp = datetime.now(timezone.utc)
-    return User(id="user-persistence", name="Government", email="gov@example.com", role="government", created_at=timestamp, updated_at=timestamp)
+    return User(id=f"user-{role}", name=f"Test {role}", email=f"{role}@example.com", role=role, created_at=timestamp, updated_at=timestamp)
 
 
 def test_feedback_persists_extended_fields():
@@ -43,7 +43,7 @@ def test_feedback_persists_extended_fields():
         project.id,
         FeedbackCreate(id="feedback-persistence", rating=5, comments="Solved", solved_status="YES", locality="Ranchi", photo_proof_url="proof.jpg"),
         db,
-        _user(),
+        _user("citizen"),
     ))
 
     assert response["project_id"] == project.id
@@ -58,7 +58,7 @@ def test_pilot_metrics_and_milestone_status_persist():
     project = Project(id="project-pilot", idea_id="idea-1", name="Pilot", created_at=timestamp, updated_at=timestamp)
     milestone = Milestone(id="milestone-pilot", project_id=project.id, title="Deploy", created_at=timestamp, updated_at=timestamp)
     db = FakeDb([project, milestone])
-    actor = _user()
+    actor = _user("professor")
 
     _run(update_pilot(project.id, PilotMetricsUpdate(status="pilot", metrics={"beneficiaries": 45200}), db, actor))
     _run(update_milestone(milestone.id, {"status": "completed"}, db, actor))
@@ -66,3 +66,27 @@ def test_pilot_metrics_and_milestone_status_persist():
     assert project.status == "pilot"
     assert json.loads(project.pilot_metrics_json)["beneficiaries"] == 45200
     assert milestone.status == "completed"
+
+
+def test_government_role_forbidden_from_workflow_mutation():
+    from fastapi import HTTPException
+    from app.core.security import forbid_roles, require_roles
+    gov_user = _user("government")
+
+    # Workflow mutation dependency forbid_roles("government") raises 403
+    dep = forbid_roles("government")
+    try:
+        dep(gov_user)
+        assert False, "Should have raised HTTPException 403"
+    except HTTPException as exc:
+        assert exc.status_code == 403
+        assert "read-only monitoring access" in exc.detail
+
+    # Workflow routes requiring professor/industry raise 403 for government
+    role_dep = require_roles("professor", "industry")
+    try:
+        role_dep(gov_user)
+        assert False, "Should have raised HTTPException 403"
+    except HTTPException as exc:
+        assert exc.status_code == 403
+

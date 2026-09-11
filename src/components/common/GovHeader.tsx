@@ -314,11 +314,11 @@ export const GovHeader: React.FC<GovHeaderProps> = ({ onSearch }) => {
                         role="menuitem"
                         onClick={() => {
                           setIsProfileOpen(false);
-                          const profilePath = currentUser.role === 'citizen' ? '/citizen/profile' :
+                          const profilePath = currentUser.role === 'citizen' ? '/citizen' :
                                               currentUser.role === 'student' || currentUser.role === 'professor' ? '/university' :
                                               currentUser.role === 'industry' ? '/industry' :
                                               currentUser.role === 'government' ? '/government' :
-                                              currentUser.role === 'expert' ? '/expert' : '/citizen/profile';
+                                              currentUser.role === 'expert' ? '/expert' : '/citizen';
                           navigate(profilePath);
                         }}
                         className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-slate-700 hover:text-gov-navy flex items-center space-x-2 transition cursor-pointer font-bold"
